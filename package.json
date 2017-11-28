@@ -4,7 +4,7 @@
   "description": "Web form with front and back validation that inserts values into a server.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npx karma start"
   },
   "repository": {
     "type": "git",
@@ -15,5 +15,28 @@
   "bugs": {
     "url": "https://github.com/BebeSparkelSparkel/form_database/issues"
   },
-  "homepage": "https://github.com/BebeSparkelSparkel/form_database#readme"
+  "homepage": "https://github.com/BebeSparkelSparkel/form_database#readme",
+  "dependencies": {
+    "celebrate": "^6.0.0",
+    "event_sequencing": "https://github.com/BebeSparkelSparkel/event_sequencing/archive/v0.0.1.tar.gz",
+    "joi": "^13.0.1",
+    "joi-browser": "^13.0.1"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-preset-env": "^1.6.1",
+    "browserify": "^14.5.0",
+    "chai": "^4.1.2",
+    "chai-dom": "^1.6.0",
+    "jsdom": "^11.3.0",
+    "karma": "^1.7.1",
+    "karma-chai": "^0.1.0",
+    "karma-chrome-launcher": "^2.2.0",
+    "karma-mocha": "^1.3.0",
+    "mocha": "^4.0.1",
+    "uglify-js": "^3.1.7"
+  },
+  "browser": {
+    "joi": "./_.js"
+  }
 }
