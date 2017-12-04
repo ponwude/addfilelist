@@ -13,7 +13,7 @@ module.exports = {
         "indent": [
             "error",
             2,
-            { "VariableDeclarator": { "var": 2, "let": 2, "const": 3 } }
+            { "VariableDeclarator": { "var": 2, "let": 2, "const": 3 } },
         ],
         "linebreak-style": [
             "error",

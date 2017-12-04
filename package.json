@@ -4,7 +4,8 @@
   "description": "Web form with front and back validation that inserts values into a server.",
   "main": "index.js",
   "scripts": {
-    "test": "npx karma start"
+    "test": "npx mocha test/test_eslint_with_mocha.js && npx mocha $(ls -d -1 $PWD/test/*.js | grep -v eslint)",
+    "build": "npx browserify -e apply_validation-entry.js -o apply_validation-bundle.js"
   },
   "repository": {
     "type": "git",

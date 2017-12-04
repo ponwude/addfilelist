@@ -6,6 +6,9 @@ const lint = require('mocha-eslint')
 const paths = [
   './*.js',
   './test/*.js',
+  // '!./test',
+  '!./apply_validation-bundle.js',
+  '!./apply_validation-entry.js',
 ]
 
 const options = {
