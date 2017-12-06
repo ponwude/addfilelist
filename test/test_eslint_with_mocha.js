@@ -5,7 +5,7 @@ const lint = require('mocha-eslint')
 // matches a glob pattern
 const paths = [
   './*.js',
-  './test/*.js',
+  './test/**/*.js',
   // '!./test',
   '!./apply_validation-bundle.js',
   '!./apply_validation-entry.js',

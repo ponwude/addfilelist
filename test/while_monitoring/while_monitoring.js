@@ -7,30 +7,30 @@ const while_monitoring = require('./while_monitoring.js')
 
 
 APIs:
-  await while_monitoring(element).expect(event).upon(cause [, timeout_ms])
-    Monitors element for the event to be dispatched when cause is called after
+  await while_monitoring(element).expect(events).upon(cause [, timeout_ms])
+    Monitors element for the events to be dispatched when cause is called after
     timeout_ms mili-seconds.
-    The promise rejects if event is not seen.
+    The promise rejects if events is not seen.
 
-  await while_monitoring(element).do_not_expect(event).upon(cause [, timeout_ms])
-    Monitors element for the event not to be dispatched when cause is called
+  await while_monitoring(element).do_not_expect(events).upon(cause [, timeout_ms])
+    Monitors element for the events not to be dispatched when cause is called
     after timeout_ms mili-seconds.
-    The promise rejects if event is seen.
+    The promise rejects if events is seen.
 
-  await while_monitoring(element).expect(event).upon_event(causal_event [, timeout_ms])
-    Monitors element for the event to be dispatched when causal_event is
+  await while_monitoring(element).expect(events).upon_event(causal_event [, timeout_ms])
+    Monitors element for the events to be dispatched when causal_event is
     dispatched on element after for timeout_ms mili-seconds.
-    The promise rejects if event is not seen.
+    The promise rejects if events is not seen.
 
-  await while_monitoring(element).do_not_expect(event).upon_event(causal_event [, timeout_ms])
-    Monitors element for the event not to be dispatched when causal_event is called
+  await while_monitoring(element).do_not_expect(events).upon_event(causal_event [, timeout_ms])
+    Monitors element for the events not to be dispatched when causal_event is called
     after timeout_ms mili-seconds.
-    The promise rejects if event is seen.
+    The promise rejects if events is seen.
 
 
 Chained Inputs:
   element - HTML element to monitor.
-  event - Event type to listen for. Example: 'click'.
+  events - Event type or types to listen for. Example 'click' or ['click', 'change']
   cause - A function that should cause the event to dispatched on element.
   timeout_ms - Wait time before checking if event has happned.
                Defaults to 10 mili-seconds.
@@ -50,38 +50,47 @@ module.exports = function (element) {
   const default_wait = 10 // mili-seconds
 
   return {
-    expect(event) {
-      let event_emitted = false
-      let event_heard = undefined
+    expect(events) {
+      if (!Array.isArray(events)) events = [events]
+
+      const events_heard = []
       const listener = e => {
-        event_emitted = true
-        event_heard = e
+        if (!events_heard.includes(e.type))
+          events_heard.push(e.type)
       }
-      element.addEventListener(event, listener)
+      events.forEach(e => {element.addEventListener(e, listener)})
 
       const upon = (cause, timeout_ms=default_wait) => {
         return new Promise((resolve, reject) => {
-          if (event_emitted) reject(new Error(`Event (${event}) was heard before cause called`))
+          if (events_heard.length > 0)
+            reject(new Error(`Event (${events}) was heard before cause called.`))
 
           cause()
 
           setTimeout(function() {
-            element.removeEventListener(event, listener) // no test for this
+            events.forEach(e => {element.removeEventListener(e, listener)}) // no test for this
 
-            if (event_emitted) resolve(event_heard)
-            else reject(new Error(`Event (${event}) was not heard after cause.`))
+            if (events_heard.length === events.length) resolve(events_heard)
+            else {
+              const unheard_events = events.filter(e => !events_heard.includes(e))
+              reject(new Error(`Event (${unheard_events.join(', ')}) was not heard after cause.`))
+            }
 
           }, timeout_ms)
         })
       }
 
-      return {upon,
+      return {
+        upon,
         upon_event(causal_event, timeout_ms=default_wait) {
+          if (typeof causal_event !== 'string')
+            throw new TypeError('causal_event needs to be a String.')
+
           return upon(
             () => {element.dispatchEvent(new Event(causal_event))},
             timeout_ms
           )
-        }
+        },
       }
 
     },
@@ -89,39 +98,39 @@ module.exports = function (element) {
     do_not_expect(events) {
       if (!Array.isArray(events)) events = [events]
 
-      let event_emitted = false
-      let events_heard = []
-      const listener = e => {
-        event_emitted = true
-        events_heard.push(e.type)
-      }
+      const events_heard = []
+      const listener = e => {events_heard.push(e.type)}
       events.forEach(e => {element.addEventListener(e, listener)})
 
       const upon = (cause, timeout_ms=default_wait) => {
         return new Promise((resolve, reject) => {
-          if (event_emitted) reject(new Error(`Event (${events}) was heard before cause called.`))
+          if (events_heard.length > 0)
+            reject(new Error(`Event (${events}) was heard before cause called.`))
 
           cause()
 
           setTimeout(function() {
             events.forEach(e => {element.removeEventListener(e, listener)}) // no test for this
 
-            // console.log('event_emitted', event_emitted)
-            // console.log('events_heard', events_heard)
-            if (event_emitted) reject(new Error(`${events_heard.join(', ')} was heard after cause.`))
+            if (events_heard.length > 0)
+              reject(new Error(`${events_heard.join(', ')} was heard after cause.`))
             else resolve()
 
           }, timeout_ms)
         })
       }
 
-      return {upon,
+      return {
+        upon,
         upon_event(causal_event, timeout_ms=default_wait) {
+          if (typeof causal_event !== 'string')
+            throw new TypeError('causal_event needs to be a String.')
+
           return upon(
             () => {element.dispatchEvent(new Event(causal_event))},
             timeout_ms
           )
-        }
+        },
       }
 
     },

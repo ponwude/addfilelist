@@ -177,52 +177,45 @@ describe('Client side should display input validation error messages.', function
 
   after(done => {server.close(done)})
 
-  it('Page should load without error.', done => {
-    (async function() {
-      const url = '/form1'
+  it('Page should load without error.', async function() {
+    const url = '/form1'
 
-      let page_html_let
-      try {
-        page_html_let = (await request.get(url)).text
-      }
-      catch (err) {
-        done(err)
-        return
-      }
-      const page_html = page_html_let
-      page_html_let = undefined
+    let page_html_let
+    try {
+      page_html_let = (await request.get(url)).text
+    }
+    catch (err) {
+      return Promise.reject(err)
+    }
+    const page_html = page_html_let
+    page_html_let = undefined
 
-      // const virtualConsole = undefined
-      const virtualConsole = new jsdom.VirtualConsole()
-      let no_dom_script_error = true
-      virtualConsole.on('jsdomError', err => {
-        no_dom_script_error = false
-        done(err)
-      })
+    // const virtualConsole = undefined
+    const virtualConsole = new jsdom.VirtualConsole()
+    let jsdomError = undefined
+    virtualConsole.on('jsdomError', err => {jsdomError = err})
 
-      const dom = new JSDOM(page_html, {
-        url: local_url,
-        runScripts: 'dangerously',
-        resources: 'usable',
-        virtualConsole,
-      })
+    const dom = new JSDOM(page_html, {
+      url: local_url,
+      runScripts: 'dangerously',
+      resources: 'usable',
+      virtualConsole,
+    })
 
-      const { window } = dom
-      const { document } = window.window
+    const { window } = dom
+    const { document } = window.window
 
-      try {
-        await Promise.all([
-          async_event(document, 'DOMContentLoaded'),
-          async_event(document.body.getElementsByTagName('form')[0], 'validation_applied'),
-        ])
-      }
-      catch (err) {
-        if (no_dom_script_error) done(err)
-        return
-      }
+    try {
+      await Promise.all([
+        async_event(document, 'DOMContentLoaded'),
+        async_event(document.body.getElementsByTagName('form')[0], 'validation_applied'),
+      ])
+    }
+    catch (err) {
+      return Promise.reject(err)
+    }
 
-      done()
-    })()
+    if (jsdomError !== undefined) return Promise.reject(jsdomError)
   })
 
   it('Validate without error.', done => {
@@ -284,152 +277,3 @@ describe('Client side should display input validation error messages.', function
     })()
   })
 })
-
-
-function while_monitoring(element) {
-  /*
-  Example:
-  await while_monitoring(input)
-    .expect('change')
-    .upon(() => input.dispatchEvent(new Event('change')))
-  */
-  const default_wait = 100 // mili-seconds
-
-  return {
-    expect(event) {
-      let event_emitted = false
-      let event_heard = undefined
-      element.addEventListener(event, e => {
-        event_emitted = true
-        event_heard = e
-      })
-
-      const upon = (cause, timeout_ms=default_wait) => {
-        return new Promise((resolve, reject) => {
-          if (event_emitted) reject(new Error(`Event (${event}) was heard before cause called`))
-
-          cause()
-
-          setTimeout(function() {
-            if (event_emitted) resolve(event_heard)
-            else reject(new Error(`Event (${event}) was not heard after cause.`))
-          }, timeout_ms)
-        })
-      }
-
-      return {upon,
-        upon_event(causal_event, timeout_ms=default_wait) {
-          return upon(
-            () => element.dispatchEvent(new Event(causal_event)),
-            timeout_ms
-          )
-        }
-      }
-
-    },
-
-    do_not_expect(events) {
-      if (!Array.isArray(events)) events = [events]
-
-      let event_emitted = false
-      let events_heard = []
-      events.forEach(event => {
-        element.addEventListener(events, e => {
-          event_emitted = true
-          events_heard.push(e.type)
-        })
-      })
-
-      const upon = (cause, timeout_ms=default_wait) => {
-        return new Promise((resolve, reject) => {
-          if (event_emitted) reject(new Error(`Event (${events}) was heard before cause called.`))
-
-          cause()
-
-          setTimeout(function() {
-            if (event_emitted) reject(new Error(`${events_heard.join(', ')} was heard after cause.`))
-            else resolve()
-          }, timeout_ms)
-        })
-      }
-
-      return {upon,
-        upon_event(causal_event, timeout_ms=default_wait) {
-          return upon(
-            () => element.dispatchEvent(new Event(causal_event)),
-            timeout_ms
-          )
-        }
-      }
-
-    },
-  }
-}
-
-describe.only('while_monitoring', function() {
-  const { JSDOM } = require('jsdom')
-  const window = new JSDOM('<!DOCTYPE html><body></body>').window
-  const { document } = window.window
-
-  const event_type = 'there should not be an event named this hopefully'
-
-  describe('expect', function() {
-    describe('upon', function() {
-      it('should catch event', async function() {
-        // await while_monitoring(document)
-        //   .expect(event_type)
-        //   .upon(() => )
-
-        return //Promise.reject()
-      })
-    })
-  })
-})
-
-
-function async_event(element, event, timeout_ms=100) {
-  return new Promise((resolve, reject) => {
-    let no_event = true
-
-    const listener = e => {
-      no_event = false
-      element.removeEventListener(event, listener)
-      resolve(e)
-    }
-
-    element.addEventListener(event, listener)
-
-    setTimeout(() => {
-      if (no_event) {
-        element.removeEventListener(event, listener)
-        reject(new Error(`${element} did not emit the event "${event}".`))
-      }
-    }, timeout_ms)
-
-  })
-}
-
-function async_no_event(element, events, timeout_ms=100) {
-  if (!Array.isArray(events)) events = [events]
-
-  return Promise.all(events.map(event => {
-    return new Promise((resolve, reject) => {
-      let no_event = true
-
-      const listener = () => {
-        no_event = false
-        element.removeEventListener(event, listener)
-        reject(new Error(`${element} emitted the event "${event}".`))
-      }
-
-      element.addEventListener(event, listener)
-
-      setTimeout(() => {
-        if (no_event) {
-          element.removeEventListener(event, listener)
-          resolve()
-        }
-      }, timeout_ms)
-    })
-  }))
-}
