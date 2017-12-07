@@ -46,7 +46,7 @@ module.exports = function(form, schema) {
       }
 
       Sequence(input)
-        .once('brush', validate_listener)
+        .once('blur', validate_listener)
         .repeat('change', validate_listener)
         .until.event('submit', form)
     })

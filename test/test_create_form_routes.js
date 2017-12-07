@@ -22,10 +22,9 @@ chai.use(require('chai-diff'))
 // chai.should()
 const { expect } = chai
 
-const Promise = require('bluebird')
-
-
 const all_events = require('../all_events.js')
+
+const while_monitoring = require('./while_monitoring/while_monitoring.js')
 
 
 const routes = {
@@ -78,19 +77,13 @@ const page_template =
 `<!DOCTYPE html>
 <html>
 <head>
-  <script src="/apply_validation-bundle.js"></script>
-  <script src="/joi-browser.js"></script>
 </head>
 <body>
 {{form_html}}
 </body>
 </html>
-<script>
-  var form = document.querySelector('form')
-  var validate_schema = {{validate_schema}}
-  apply_validation(form, validate_schema)
-  form.dispatchEvent(new Event('validation_applied'))
-</script>
+<script>var form_type = {{form_type}}</script>
+<script src="/apply_validation-bundle.js"></script>
 `
 
 
@@ -109,9 +102,7 @@ describe('get request should return an html form.', function() {
       .get(url)
       .expect('Content-Type', 'text/html; charset=utf-8')
       .expect(200)
-      .then(res => {
-        expect(res.text).not.differentFrom(page_html)
-      })
+      .then(res => {expect(res.text).not.differentFrom(page_html)})
   })
 
   it('Should return form page with form html validate schema (/form1).', function() {
@@ -128,9 +119,7 @@ describe('get request should return an html form.', function() {
       .get(url)
       .expect('Content-Type', 'text/html; charset=utf-8')
       .expect(200)
-      .then(res => {
-        expect(res.text).not.differentFrom(page_html)
-      })
+      .then(res => {expect(res.text).not.differentFrom(page_html)})
   })
 })
 
@@ -142,7 +131,6 @@ describe('Client side should display input validation error messages.', function
 
   const file_paths = {
     '/apply_validation-bundle.js': '../apply_validation-bundle.js',
-    '/joi-browser.js': '../node_modules/joi-browser/dist/joi-browser.min.js',
   }
   for (const file in file_paths) {
     if (file_paths.hasOwnProperty(file)) {
@@ -177,7 +165,7 @@ describe('Client side should display input validation error messages.', function
 
   after(done => {server.close(done)})
 
-  it('Page should load without error.', async function() {
+  it.only('Page should load without error.', async function() {
     const url = '/form1'
 
     let page_html_let
@@ -201,21 +189,22 @@ describe('Client side should display input validation error messages.', function
       resources: 'usable',
       virtualConsole,
     })
-
     const { window } = dom
     const { document } = window.window
-
+    const form = document.body.querySelector('form')
+    if (jsdomError !== undefined) return Promise.reject(jsdomError)
     try {
       await Promise.all([
-        async_event(document, 'DOMContentLoaded'),
-        async_event(document.body.getElementsByTagName('form')[0], 'validation_applied'),
+        while_monitoring(document).expect('DOMContentLoaded').upon(),
+        while_monitoring(form).expect('validation_applied').upon
       ])
     }
     catch (err) {
       return Promise.reject(err)
     }
 
-    if (jsdomError !== undefined) return Promise.reject(jsdomError)
+
+
   })
 
   it('Validate without error.', done => {

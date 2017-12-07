@@ -1,16 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <script src="/apply_validation-bundle.js"></script>
-  <script src="/joi-browser.js"></script>
 </head>
 <body>
 {{form_html}}
 </body>
 </html>
-<script>
-  var form = document.querySelector('form')
-  var validate_schema = {{validate_schema}}
-  apply_validation(form, validate_schema)
-  form.dispatchEvent(new Event('validation_applied'))
-</script>
+<script>var form_type = {{form_type}}</script>
+<script src="/apply_validation-bundle.js"></script>

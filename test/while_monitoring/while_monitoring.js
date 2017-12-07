@@ -44,8 +44,8 @@ Example of awaiting an event to happen upon a cause:
 Example of an event not happening upon a cause
 */
 
-
-module.exports = function (element) {
+function while_monitoring(element) {
+  const init_error = new WhileMonitoringError(new Error())
 
   const default_wait = 10 // mili-seconds
 
@@ -60,7 +60,7 @@ module.exports = function (element) {
       }
       events.forEach(e => {element.addEventListener(e, listener)})
 
-      const upon = (cause, timeout_ms=default_wait) => {
+      const upon = (cause=()=>{}, timeout_ms=default_wait) => {
         return new Promise((resolve, reject) => {
           if (events_heard.length > 0)
             reject(new Error(`Event (${events}) was heard before cause called.`))
@@ -73,7 +73,9 @@ module.exports = function (element) {
             if (events_heard.length === events.length) resolve(events_heard)
             else {
               const unheard_events = events.filter(e => !events_heard.includes(e))
-              reject(new Error(`Event (${unheard_events.join(', ')}) was not heard after cause.`))
+              reject(init_error.replaceStack(
+                new Error(`Event (${unheard_events.join(', ')}) was not heard after cause.`)
+              ))
             }
 
           }, timeout_ms)
@@ -102,7 +104,7 @@ module.exports = function (element) {
       const listener = e => {events_heard.push(e.type)}
       events.forEach(e => {element.addEventListener(e, listener)})
 
-      const upon = (cause, timeout_ms=default_wait) => {
+      const upon = (cause=()=>{}, timeout_ms=default_wait) => {
         return new Promise((resolve, reject) => {
           if (events_heard.length > 0)
             reject(new Error(`Event (${events}) was heard before cause called.`))
@@ -112,8 +114,11 @@ module.exports = function (element) {
           setTimeout(function() {
             events.forEach(e => {element.removeEventListener(e, listener)}) // no test for this
 
-            if (events_heard.length > 0)
-              reject(new Error(`${events_heard.join(', ')} was heard after cause.`))
+            if (events_heard.length > 0) {
+              reject(init_error.replaceStack(
+                new Error(`${events_heard.join(', ')} was heard after cause.`)
+              ))
+            }
             else resolve()
 
           }, timeout_ms)
@@ -136,3 +141,42 @@ module.exports = function (element) {
     },
   }
 }
+
+
+function WhileMonitoringError(init_error) {
+  Object.getOwnPropertyNames(init_error).forEach(prop => {
+    this[prop] = init_error[prop]
+  })
+}
+
+WhileMonitoringError.prototype = new Error
+
+WhileMonitoringError.prototype.replaceStack = function(another_error) {
+  const to_return = new WhileMonitoringError(another_error)
+
+  to_return.stack = this.stack
+    .replace(/Error.*\n/g, 'Error: ' + another_error.message + '\n')
+    .removeLinesWith('timers.js')
+    .removeLinesWith(['at', 'module.exports', 'while_monitoring.js'])
+    .removeLinesWith(['at', 'mocha'])
+
+  return to_return
+}
+
+if (String.prototype.removeLine === undefined) {
+  String.prototype.removeLinesWith = function(substring) {
+    return this
+      .split('\n')
+      .filter(
+        Array.isArray(substring) ?
+        line => !substring.every(ss => line.includes(ss)) :
+        line => !line.includes(substring)
+      )
+      .join('\n')
+  }
+}
+
+else throw new Error('Cannot define "String.prototype.removeLine" because it is already defined.')
+
+
+module.exports = while_monitoring
