@@ -1,4 +1,4 @@
-/*global describe, it, __dirname, after */
+/*global describe, it, __dirname, before, after */
 /*eslint-disable no-console */
 
 const path = require('path')
@@ -9,7 +9,7 @@ const jsdom = require('jsdom')
 const { JSDOM } = jsdom
 const { window } = new JSDOM('<!DOCTYPE html><body></body>')
 const { document } = window.window
-const Event = window.Event
+// const Event = window.Event
 
 const create_form_routes = require('../create_form_routes.js') // testing
 
@@ -22,7 +22,7 @@ chai.use(require('chai-diff'))
 // chai.should()
 const { expect } = chai
 
-const all_events = require('../all_events.js')
+// const all_events = require('../all_events.js')
 
 const while_monitoring = require('./while_monitoring/while_monitoring.js')
 
@@ -73,7 +73,7 @@ app.use(function(err, req, res) {
 const request = require('supertest')(app)
 
 
-const page_template =
+const test_template =
 `<!DOCTYPE html>
 <html>
 <head>
@@ -88,15 +88,27 @@ const page_template =
 
 
 describe('get request should return an html form.', function() {
+
+  const form_html_insert = '{{form_html}}'
+  const form_type_insert = '{{form_type}}'
+
+  it('HTML template matches test HTML template.', async function() {
+    const template_path = './form_template.html'
+    const file_template = await fs.readFile(template_path, 'utf8')
+
+    expect(file_template).to.equal(test_template)
+
+    expect(file_template).to.contain(form_html_insert)
+    expect(file_template).to.contain(form_type_insert)
+  })
+
   it('Should return form page with form html validate schema (/form0).', function() {
     const url = '/form0'
     const schema = routes[url]
 
-    const page_html = page_template
+    const page_html = test_template
       .replace('{{form_html}}', form_builder(schema).outerHTML)
-      .replace('{{validate_schema}}', JSON.stringify(
-        schema.map(x => ({name: x.name, validate: x.validate}))
-      ))
+      .replace('{{form_type}}', url)
 
     return request
       .get(url)
@@ -109,11 +121,9 @@ describe('get request should return an html form.', function() {
     const url = '/form1'
     const schema = routes[url]
 
-    const page_html = page_template
+    const page_html = test_template
       .replace('{{form_html}}', form_builder(schema).outerHTML)
-      .replace('{{validate_schema}}', JSON.stringify(
-        schema.map(x => ({name: x.name, validate: x.validate}))
-      ))
+      .replace('{{form_type}}', url)
 
     return request
       .get(url)
@@ -161,22 +171,15 @@ describe('Client side should display input validation error messages.', function
     }
   })
   server.setTimeout(50)
-  server.listen(port, hostname)
+
+  before(done => {server.listen(port, hostname, done)})
 
   after(done => {server.close(done)})
 
-  it.only('Page should load without error.', async function() {
+  it('Page should load without error.', async function() {
     const url = '/form1'
 
-    let page_html_let
-    try {
-      page_html_let = (await request.get(url)).text
-    }
-    catch (err) {
-      return Promise.reject(err)
-    }
-    const page_html = page_html_let
-    page_html_let = undefined
+    const page_html = (await request.get(url)).text
 
     // const virtualConsole = undefined
     const virtualConsole = new jsdom.VirtualConsole()
@@ -192,77 +195,77 @@ describe('Client side should display input validation error messages.', function
     const { window } = dom
     const { document } = window.window
     const form = document.body.querySelector('form')
-    if (jsdomError !== undefined) return Promise.reject(jsdomError)
     try {
       await Promise.all([
         while_monitoring(document).expect('DOMContentLoaded').upon(),
-        while_monitoring(form).expect('validation_applied').upon
+        while_monitoring(form).expect('validation_applied').upon(),
       ])
     }
     catch (err) {
       return Promise.reject(err)
     }
-
+    if (jsdomError !== undefined) return Promise.reject(jsdomError)
+    
 
 
   })
 
-  it('Validate without error.', done => {
-    (async function() {
-      const url = '/form0',
-            good_values = routes[url][0]['good_values']
+  // it('Validate without error.', done => {
+  //   (async function() {
+  //     const url = '/form0'
+  //           good_values = routes[url][0]['good_values']
 
-      let page_html_let
-      try {
-        page_html_let = (await request.get(url)).text
+  //     let page_html_let
+  //     try {
+  //       page_html_let = (await request.get(url)).text
 
-        const page_html = page_html_let
-        page_html_let = undefined
+  //       const page_html = page_html_let
+  //       page_html_let = undefined
 
-        const dom = new JSDOM(page_html, {
-          url: local_url,
-          runScripts: 'dangerously',
-          resources: 'usable',
-        })
+  //       const dom = new JSDOM(page_html, {
+  //         url: local_url,
+  //         runScripts: 'dangerously',
+  //         resources: 'usable',
+  //       })
 
-        const { window } = dom
-        const { document } = window.window
+  //       const { window } = dom
+  //       const { document } = window.window
 
-        const form = document.body.getElementsByTagName('form')[0]
-        await async_event(form, 'validation_applied')
+  //       const form = document.body.getElementsByTagName('form')[0]
+  //       await async_event(form, 'validation_applied')
 
-        const input = document.body.querySelector('input')
+  //       const input = document.body.querySelector('input')
 
 
 
-        // console.log('1 input_event_queue', input_event_queue.map(event => event.type))
-        // input.value = good_values[0]
-        // input.dispatchEvent(new Event('change'))
-        // console.log('2 input_event_queue', input_event_queue.map(event => event.type))
-        // await async_event(input, 'change')
-        // console.log('3 input_event_queue', input_event_queue.map(event => event.type))
-        // window.eval("document.body.querySelector('input').dispatchEvent(new Event('click'))")
-        // console.log('4 input_event_queue', input_event_queue.map(event => event.type))
-        // await async_event(input, 'click')
-        // console.log('5 input_event_queue', input_event_queue.map(event => event.type))
-        // await async_no_event(input, input_events)
+  //       // console.log('1 input_event_queue', input_event_queue.map(event => event.type))
+  //       // input.value = good_values[0]
+  //       // input.dispatchEvent(new Event('change'))
+  //       // console.log('2 input_event_queue', input_event_queue.map(event => event.type))
+  //       // await async_event(input, 'change')
+  //       // console.log('3 input_event_queue', input_event_queue.map(event => event.type))
+  //       // window.eval("document.body.querySelector('input').dispatchEvent(new Event('click'))")
+  //       // console.log('4 input_event_queue', input_event_queue.map(event => event.type))
+  //       // await async_event(input, 'click')
+  //       // console.log('5 input_event_queue', input_event_queue.map(event => event.type))
+  //       // await async_no_event(input, input_events)
 
-        // input.dispatchEvent(new Event('blur'))
-        // console.log('6 input_event_queue', input_event_queue.map(event => event.type))
-        // await async_event(input, 'valid', 100)
+  //       // input.dispatchEvent(new Event('blur'))
+  //       // console.log('6 input_event_queue', input_event_queue.map(event => event.type))
+  //       // await async_event(input, 'valid', 100)
 
-        await while_monitoring(input)
-          .do_not_expect(['valid', 'invalid'])
-          .upon(() => input.dispatchEvent(new Event('change')))
+  //       await while_monitoring(input)
+  //         .do_not_expect(['valid', 'invalid'])
+  //         .upon(() => input.dispatchEvent(new Event('change')))
 
-        await while_monitoring(input)
-          .expect('valid')
-          .upon()
+  //       await while_monitoring(input)
+  //         .expect('valid')
+  //         .upon()
 
-        done()
-      } catch (err) {
-        done(err)
-      }
-    })()
-  })
+  //       done()
+  //     } catch (err) {
+  //       done(err)
+  //     }
+  //   })()
+  // })
 })

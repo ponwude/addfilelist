@@ -18,6 +18,8 @@ chai.use(require('chai-dom'))
 chai.should()
 const {expect} = chai
 
+const while_monitoring = require('./while_monitoring/while_monitoring.js')
+
 
 describe('Test how the validation methods are applied.', function() {
   // quick links to form and input elements (set by beforeEach)
@@ -44,16 +46,6 @@ describe('Test how the validation methods are applied.', function() {
   const input_1_vals = {good: 'a', bad: '@', error_msg: 'must only contain alpha-numeric characters'},
         input_2_vals = {good: '1', bad: 'b', error_msg: 'must be a number'}
 
-  function set_val(input, val) {
-    return new Promise(resolve => {
-      input.value = val
-      input.dispatchEvent(new Event('brush'))
-      input.dispatchEvent(new Event('change'))
-
-      input.addEventListener('valid', () => resolve('valid'))
-      input.addEventListener('invalid', () => resolve('invalid'))
-    })
-  }
 
   beforeEach(function() {
     /* Re-initialize the form before each test */
@@ -110,4 +102,58 @@ describe('Test how the validation methods are applied.', function() {
     apply_validation(elements.form, schema)
   })
 
+})
+
+
+function set_val(input, val, dispatch=['blur', 'change']) {
+
+  return new Promise(resolve => {
+    input.value = val
+    dispatch.forEach(e => input.dispatchEvent(new Event(e)))
+
+    input.addEventListener('valid', () => resolve('valid'))
+    input.addEventListener('invalid', () => resolve('invalid'))
+  })
+}
+
+describe.only('set_val', function() {
+  let input
+
+  beforeEach(function() {
+    input = document.createElement('input')
+  })
+
+  describe('should dispatch', function() {
+    it('a single trigger event.', function() {
+      const single_event = 'ev0'
+
+      return while_monitoring(input)
+        .expect(single_event)
+        .upon(() => {
+          set_val(input, undefined, single_event)
+        })
+    })
+
+    it('multiple trigger events.', function() {
+      const multiple_events = Object.freeze(['ev1', 'ev2'])
+
+      return while_monitoring(input)
+        .expect(multiple_events)
+        .upon(() => {
+          set_val(input, undefined, multiple_events)
+        })
+    })
+
+    it('no trigger event.', function() {
+      return 
+    })
+  })
+
+  // it('should trigger ', async function() {
+  //   const expected_events = Object.freeze(['ev1', 'ev2'])
+  //   while_monitoring(input)
+  //     .expect('valid')
+  //     .upon(() => input.dispatchEvent(new Event('b')))
+
+  // })
 })

@@ -55,7 +55,6 @@ describe('while_monitoring', function() {
 
         it('multiple events', async function() {
           for (let meti = multiple_event_types.length - 1; meti >= 0; --meti) {
-            const event_type = multiple_event_types[meti]
             try {
               await while_monitoring(document)
                 .expect(multiple_event_types)
@@ -101,7 +100,95 @@ describe('while_monitoring', function() {
 
       })
 
-      it('with default argument', function() {
+      describe('cause function', function() {
+        it('fails with syncronous error.', async function() {
+          const expected_error_msg = 'Expected Syncronous Error Message'
+          try {
+            await while_monitoring(document)
+              .expect('No Events Expected')
+              .upon(() => {throw new Error(expected_error_msg)})
+
+            return Promise.reject('The exception trown by cause was not rejected.')
+          } catch (err) {
+            expect(err.message).to.equal(expected_error_msg)
+          }
+        })
+
+        describe('returns a Promise that will', function() {
+          it('reject.', async function() {
+            const expected_error_msg = 'Expected Promise Rejection Message'
+            try {
+              await while_monitoring(document)
+                .expect('No Events Expected')
+                .upon(() => {return Promise.reject(new Error(expected_error_msg))})
+
+              return Promise.reject('The returned rejected promise from cause was not rejected.')
+            } catch (err) {
+              expect(err.message).to.equal(expected_error_msg)
+            }
+          })
+
+          it('resolve.', async function() {
+            let is_resolved = false
+            const to_resolve = new Promise(resolve => {
+              is_resolved = true
+              resolve()
+            })
+
+            try {
+              await while_monitoring(document)
+                .expect(event_type)
+                .upon(() => {
+                  document.dispatchEvent(new Event(event_type))
+                  return to_resolve
+                })
+            } catch (err) {throw err}
+
+            expect(is_resolved).to.be.true
+          })
+        })
+
+        describe('is acually passed a Promise that', function() {
+
+          // Not sure how to test this without rejecting with:
+          // Error: Event (et0) was heard before cause called.
+          it('resolves.'//,
+            //   async function() {
+            //   let is_resolved = false
+
+            //   try {
+            //     await while_monitoring(document)
+            //       .expect(event_type)
+            //       .upon(new Promise(resolve => {
+            //         console.log('dispatchEvent')
+            //         document.dispatchEvent(new Event(event_type))
+            //         is_resolved = true
+            //         resolve()
+            //       }))
+            //   } catch (err) {throw err}
+
+            //   expect(is_resolved).to.be.true
+            // }
+          )
+
+          it('rejects.', async function() {
+            const reject_msg = 'Should Reject'
+
+            try {
+              await while_monitoring(document)
+                .expect(event_type)
+                .upon(Promise.reject(new Error(reject_msg)))
+
+              return Promise.reject('The the cause reject promise was not rejected.')
+            } catch (err) {
+              expect(err.message).to.equal(reject_msg)
+            }
+          })
+        })
+
+      })
+
+      it('with default argument.', function() {
         const wm_prom = while_monitoring(document)
           .expect(event_type)
           .upon()
@@ -255,6 +342,91 @@ describe('while_monitoring', function() {
         })
       })
 
+      describe('cause function', function() {
+        it('fails with syncronous error.', async function() {
+          const expected_error_msg = 'Expected Syncronous Error Message'
+          try {
+            await while_monitoring(document)
+              .do_not_expect('No Events Expected')
+              .upon(() => {throw new Error(expected_error_msg)})
+
+            return Promise.reject('The exception trown by cause was not rejected.')
+          } catch (err) {
+            expect(err.message).to.equal(expected_error_msg)
+          }
+        })
+
+        describe('returns a Promise that will', function() {
+          it('reject.', async function() {
+            const expected_error_msg = 'Expected Promise Rejection Message'
+            try {
+              await while_monitoring(document)
+                .do_not_expect('No Events Expected')
+                .upon(() => {return Promise.reject(new Error(expected_error_msg))})
+
+              return Promise.reject('The returned rejected promise from cause was not rejected.')
+            } catch (err) {
+              expect(err.message).to.equal(expected_error_msg)
+            }
+          })
+
+          it('resolve.', async function() {
+            let is_resolved = false
+            const to_resolve = new Promise(resolve => {
+              is_resolved = true
+              resolve()
+            })
+
+            try {
+              await while_monitoring(document)
+                .do_not_expect(event_type)
+                .upon(() => to_resolve)
+            } catch (err) {throw err}
+
+            expect(is_resolved).to.be.true
+          })
+        })
+
+        describe('is acually passed a Promise that', function() {
+
+          // Not sure how to test this without rejecting with:
+          // Error: Event (et0) was heard before cause called.
+          it('resolves.'//,
+            //   async function() {
+            //   let is_resolved = false
+
+            //   try {
+            //     await while_monitoring(document)
+            //       .do_not_expect(event_type)
+            //       .upon(new Promise(resolve => {
+            //         console.log('dispatchEvent')
+            //         document.dispatchEvent(new Event(event_type))
+            //         is_resolved = true
+            //         resolve()
+            //       }))
+            //   } catch (err) {throw err}
+
+            //   expect(is_resolved).to.be.true
+            // }
+          )
+
+          it('rejects.', async function() {
+            const reject_msg = 'Should Reject'
+
+            try {
+              await while_monitoring(document)
+                .do_not_expect(event_type)
+                .upon(Promise.reject(new Error(reject_msg)))
+
+              return Promise.reject('The the cause reject promise was not rejected.')
+            } catch (err) {
+              expect(err.message).to.equal(reject_msg)
+            }
+          })
+        })
+
+      })
+
       it('with default argument', async function() {
         const wm_prom = while_monitoring(document)
           .do_not_expect(event_type)
@@ -369,7 +541,7 @@ describe('while_monitoring', function() {
 
     Object.defineProperty(Array.prototype, new_method, {enumerable: false})
 
-  } else throw new Error("Overriding existing Array.prototype.copyWithout. Possible causes: New API defines the method, there's a framework conflict or you've got double inclusions in your code.")
+  } else throw new Error('Overriding existing Array.prototype.copyWithout. Possible causes: New API defines the method, there is a framework conflict or you have double inclusions in your code.')
 }
 
 

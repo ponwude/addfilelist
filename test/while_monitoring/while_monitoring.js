@@ -65,7 +65,9 @@ function while_monitoring(element) {
           if (events_heard.length > 0)
             reject(new Error(`Event (${events}) was heard before cause called.`))
 
-          cause()
+          cause = cause instanceof Promise ? cause : cause()
+          if (cause instanceof Promise)
+            cause.then(resolve).catch(reject)
 
           setTimeout(function() {
             events.forEach(e => {element.removeEventListener(e, listener)}) // no test for this
@@ -109,7 +111,9 @@ function while_monitoring(element) {
           if (events_heard.length > 0)
             reject(new Error(`Event (${events}) was heard before cause called.`))
 
-          cause()
+          cause = cause instanceof Promise ? cause : cause()
+          if (cause instanceof Promise)
+            cause.then(resolve).catch(reject)
 
           setTimeout(function() {
             events.forEach(e => {element.removeEventListener(e, listener)}) // no test for this
@@ -167,8 +171,7 @@ if (String.prototype.removeLine === undefined) {
   String.prototype.removeLinesWith = function(substring) {
     return this
       .split('\n')
-      .filter(
-        Array.isArray(substring) ?
+      .filter(Array.isArray(substring) ?
         line => !substring.every(ss => line.includes(ss)) :
         line => !line.includes(substring)
       )
