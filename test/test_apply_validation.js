@@ -145,10 +145,13 @@ describe.only('set_val', function() {
     })
 
     it('no trigger event.', function() {
-      return 
+      return
     })
   })
 
+  it('description', function() {
+    throw 'asdf'
+  })
   // it('should trigger ', async function() {
   //   const expected_events = Object.freeze(['ev1', 'ev2'])
   //   while_monitoring(input)
