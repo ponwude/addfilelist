@@ -13,6 +13,7 @@ const { document } = window.window
 Event = window.Event //asdfkasdf check if this needs to be a global
 /*eslint-enable no-global-assign */
 
+const add_method = require('../../add_method.js')
 
 describe('while_monitoring', function() {
 
@@ -525,26 +526,12 @@ describe('while_monitoring', function() {
 })
 
 
+add_method('copyWithout', Array, function(without) {
+  if (!Array.isArray(without))
+    without = [without]
 
-
-{
-  // define the Array method copyWithout
-  const new_method = 'copyWithout'
-
-  if(Array.prototype[new_method] === undefined) {
-    Array.prototype[new_method] = function(without) {
-      if (!Array.isArray(without))
-        without = [without]
-
-      return this.filter(v => !without.includes(v))
-    }
-
-    Object.defineProperty(Array.prototype, new_method, {enumerable: false})
-
-  } else throw new Error('Overriding existing Array.prototype.copyWithout. Possible causes: New API defines the method, there is a framework conflict or you have double inclusions in your code.')
-}
-
-
+  return this.filter(v => !without.includes(v))
+})
 
 describe('Array copyWithout', function() {
   const to_copy = Object.freeze([1, 2, 3])
@@ -716,4 +703,5 @@ describe('Custom method String.removeLinesWith', function() {
       .should.equal('hi\nbob\nthis\nis\ngreat\n')
   })
 })
+
 

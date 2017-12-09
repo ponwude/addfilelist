@@ -44,6 +44,9 @@ Example of awaiting an event to happen upon a cause:
 Example of an event not happening upon a cause
 */
 
+const add_method = require('../../add_method.js')
+
+
 function while_monitoring(element) {
   const init_error = new WhileMonitoringError(new Error())
 
@@ -155,7 +158,7 @@ function WhileMonitoringError(init_error) {
 
 WhileMonitoringError.prototype = new Error
 
-WhileMonitoringError.prototype.replaceStack = function(another_error) {
+add_method('replaceStack', WhileMonitoringError, function(another_error) {
   const to_return = new WhileMonitoringError(another_error)
 
   to_return.stack = this.stack
@@ -165,21 +168,18 @@ WhileMonitoringError.prototype.replaceStack = function(another_error) {
     .removeLinesWith(['at', 'mocha'])
 
   return to_return
-}
+})
 
-if (String.prototype.removeLine === undefined) {
-  String.prototype.removeLinesWith = function(substring) {
-    return this
-      .split('\n')
-      .filter(Array.isArray(substring) ?
-        line => !substring.every(ss => line.includes(ss)) :
-        line => !line.includes(substring)
-      )
-      .join('\n')
-  }
-}
 
-else throw new Error('Cannot define "String.prototype.removeLine" because it is already defined.')
+add_method('removeLinesWith', String, function(substring) {
+  return this
+    .split('\n')
+    .filter(Array.isArray(substring) ?
+      line => !substring.every(ss => line.includes(ss)) :
+      line => !line.includes(substring)
+    )
+    .join('\n')
+})
 
 
 module.exports = while_monitoring

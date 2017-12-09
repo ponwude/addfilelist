@@ -28,6 +28,9 @@ Example schema:
   },
 ]
 */
+
+const add_method = require('./add_method.js')
+
 module.exports = function(schema,
   // options
   {
@@ -38,6 +41,20 @@ module.exports = function(schema,
 ) {
   const form = document.createElement('form')
   form_attributes.forEach((attr, attr_value) => form.setAttribute(attr, attr_value))
+
+  const createAppendElement = function (parent, tag) {
+    /*
+    Creates a new element of type tag.
+    Appends new element to parent.
+    Returns new element.
+
+    parent - element that the new element is appended to
+    tag - string that defines the new element's tag
+    */
+    const new_element = document.createElement(tag)
+    parent.appendChild(new_element)
+    return new_element
+  }
 
   schema.forEach(spec => {
     // console.log(spec)
@@ -69,29 +86,13 @@ module.exports = function(schema,
   submit.value = submit_text
 
   return form
-
-  function createAppendElement(parent, tag) {
-    /*
-    Creates a new element of type tag.
-    Appends new element to parent.
-    Returns new element.
-
-    parent - element that the new element is appended to
-    tag - string that defines the new element's tag
-    */
-    const new_element = document.createElement(tag)
-    parent.appendChild(new_element)
-    return new_element
-  }
-
 }
 
-if (Object.forEach === undefined) {
-  Object.prototype.forEach = function(func) {
-    for (const key in this) {
-      if (this.hasOwnProperty(key)) {
-        func(key, this[key])
-      }
+
+add_method('forEach', Object, function(func) {
+  for (const key in this) {
+    if (this.hasOwnProperty(key)) {
+      func(key, this[key])
     }
   }
-}
+})

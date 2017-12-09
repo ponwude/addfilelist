@@ -28,13 +28,3 @@ module.exports = function(form_schemas) {
 
   return router
 }
-
-if (Object.forEach === undefined) {
-  Object.prototype.forEach = function(func) {
-    for (const key in this) {
-      if (this.hasOwnProperty(key)) {
-        func(key, this[key])
-      }
-    }
-  }
-}

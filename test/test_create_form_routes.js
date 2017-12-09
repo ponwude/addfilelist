@@ -180,6 +180,7 @@ describe('Client side should display input validation error messages.', function
     const url = '/form1'
 
     const page_html = (await request.get(url)).text
+    await fs.writeFile('form_rendered.html', page_html)
 
     // const virtualConsole = undefined
     const virtualConsole = new jsdom.VirtualConsole()
@@ -195,17 +196,15 @@ describe('Client side should display input validation error messages.', function
     const { window } = dom
     const { document } = window.window
     const form = document.body.querySelector('form')
+    if (jsdomError !== undefined) return Promise.reject(jsdomError)
     try {
       await Promise.all([
         while_monitoring(document).expect('DOMContentLoaded').upon(),
         while_monitoring(form).expect('validation_applied').upon(),
       ])
-    }
-    catch (err) {
+    } catch (err) {
       return Promise.reject(err)
     }
-    if (jsdomError !== undefined) return Promise.reject(jsdomError)
-    
 
 
   })
