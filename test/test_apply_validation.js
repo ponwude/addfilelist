@@ -1,6 +1,6 @@
 /*global describe it beforeEach */
 
-/*eslint-disable no-global-assign, no-undef */
+/*eslint-disable no-global-assign, no-undef, no-console */
 Joi = require('joi-browser')
 
 const { JSDOM } = require('jsdom')
@@ -106,13 +106,16 @@ describe('Test how the validation methods are applied.', function() {
 
 
 function set_val(input, val, dispatch=['blur', 'change']) {
+  if (!Array.isArray(dispatch)) dispatch = [dispatch]
 
   return new Promise(resolve => {
     input.value = val
-    dispatch.forEach(e => input.dispatchEvent(new Event(e)))
+    dispatch.forEach(e => {
+      input.dispatchEvent(new Event(e))
+    })
 
-    input.addEventListener('valid', () => resolve('valid'))
-    input.addEventListener('invalid', () => resolve('invalid'))
+    input.addEventListener('valid', () => {resolve('valid')})
+    input.addEventListener('invalid', () => {resolve('invalid')})
   })
 }
 
@@ -124,14 +127,19 @@ describe.only('set_val', function() {
   })
 
   describe('should dispatch', function() {
-    it('a single trigger event.', function() {
+    it.only('a single trigger event.', async function() {
       const single_event = 'ev0'
 
-      return while_monitoring(input)
+      let is_resolved = false
+      await while_monitoring(input)
         .expect(single_event)
-        .upon(() => {
-          set_val(input, undefined, single_event)
+        .upon(async () => {
+          await set_val(input, undefined, single_event)
+          // input.dispatchEvent('valid')
+          is_resolved = true
         })
+
+      expect(is_resolved).to.be.true
     })
 
     it('multiple trigger events.', function() {
@@ -149,9 +157,6 @@ describe.only('set_val', function() {
     })
   })
 
-  it('description', function() {
-    throw 'asdf'
-  })
   // it('should trigger ', async function() {
   //   const expected_events = Object.freeze(['ev1', 'ev2'])
   //   while_monitoring(input)

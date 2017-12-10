@@ -4,8 +4,8 @@
 /*eslint-disable no-console */
 
 const chokidar = require('chokidar')
-
 const { exec } = require('child-process-promise')
+const fs = require('then-fs')
 
 const relations = [
   {
@@ -19,10 +19,10 @@ const relations = [
   {
     testing: 'while_monitoring',
     watch_files: [
-      'test/while_monitoring/test_while_moniring.js',
+      'test/while_monitoring/test_while_monitoring.js',
       'test/while_monitoring/while_monitoring.js',
     ],
-    test_file: 'test/while_monitoring/test_while_moniring.js',
+    test_file: 'test/while_monitoring/test_while_monitoring.js',
   },
   {
     testing: 'create_form_routes',
@@ -43,6 +43,15 @@ async function setup() {
   for (let ri = 0; ri < relations.length; ++ri) {
     const settings = relations[ri]
 
+    try {
+      await Promise.all([settings.test_file].concat(settings.watch_files).map(
+        file => fs.access(file)
+      ))
+    } catch(err) {
+      console.error(err)
+      process.exit(1)
+    }
+
     const run_mocha_test = async function() {
       try {
         const {stdout, stderr} = await exec([
@@ -60,7 +69,7 @@ async function setup() {
           break_cml('end', settings.testing),
         ].join('\n'))
 
-      } catch(err) {console.log(err)}
+      } catch(err) {console.error(err)}
     }
 
     chokidar.watch(settings.watch_files, {interval: rate_limit_time})
