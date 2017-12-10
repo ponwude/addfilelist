@@ -6,6 +6,7 @@
 const chokidar = require('chokidar')
 const { exec } = require('child-process-promise')
 const fs = require('then-fs')
+const moment = require('moment')
 
 const relations = [
   {
@@ -31,6 +32,22 @@ const relations = [
       'create_form_routes.js',
     ],
     test_file: 'test/test_create_form_routes.js',
+  },
+  {
+    testing: 'form_builder',
+    watch_files: [
+      'test/test_form_builder.js',
+      'form_builder.js',
+    ],
+    test_file: 'test/test_form_builder.js',
+  },
+  {
+    testing: 'add_method',
+    watch_files: [
+      'test/test_add_method.js',
+      'add_method.js',
+    ],
+    test_file: 'test/test_add_method.js',
   },
 ]
 
@@ -87,7 +104,7 @@ async function setup() {
 
 
 function break_cml(str1='', str2='') {
-  const label = ` ${str1.trim()} ${str2.trim()} `
+  const label = ` ${str1.trim()} ${str2.trim()} ${moment().format('h:mm:ss')} `
   const num_dashes = Math.trunc((process.stdout.rows - label.length) / 2)
   const dashes = '-'.repeat(num_dashes)
   return dashes + label + dashes + '\n'

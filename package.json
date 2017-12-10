@@ -39,6 +39,7 @@
     "eslint": "^4.12.1",
     "mocha": "^4.0.1",
     "mocha-eslint": "^4.1.0",
+    "moment": "^2.19.3",
     "supertest": "^3.0.0",
     "then-fs": "^2.0.0"
   },
