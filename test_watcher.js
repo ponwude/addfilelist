@@ -30,6 +30,8 @@ const relations = [
     watch_files: [
       'test/test_create_form_routes.js',
       'create_form_routes.js',
+      {file: 'form_template.html', skip_eslint: true},
+      {file: 'apply_validation-bundle.js', skip_eslint: true},
     ],
     test_file: 'test/test_create_form_routes.js',
   },
@@ -60,8 +62,9 @@ async function setup() {
   for (let ri = 0; ri < relations.length; ++ri) {
     const settings = relations[ri]
 
+    // files exist
     try {
-      await Promise.all([settings.test_file].concat(settings.watch_files).map(
+      await Promise.all(file_name([settings.test_file].concat(settings.watch_files)).map(
         file => fs.access(file)
       ))
     } catch(err) {
@@ -69,11 +72,16 @@ async function setup() {
       process.exit(1)
     }
 
+    const eslint_files = settings.watch_files.filter(file => {
+      return typeof file === 'string' ||
+            (typeof file === 'object' && !file.skip_eslint)
+    })
+
     const run_mocha_test = async function() {
       try {
         const {stdout, stderr} = await exec([
           'echo "exec start" &&',
-          `npx eslint ${settings.watch_files.join(' ')} &&`,
+          `npx eslint ${eslint_files.join(' ')} &&`,
           `echo "eslint passed: ${settings.watch_files.join(' ')}" &&`,
           `echo "mocha results: ${settings.test_file}" &&`,
           `npx mocha ${settings.test_file} || true`,
@@ -123,4 +131,25 @@ function rate_limit_drop(time_limit, func) {
 
     return to_return
   }
+}
+
+function file_name(file_objs, depth=0) {
+  if (typeof file_objs === 'string')
+    return file_objs
+
+  if (Array.isArray(file_objs)) {
+    if (depth > 0)
+      throw new Error('file_objs cannot contain Arrays.')
+
+    return file_objs.map(file => file_name(file, 1))
+  }
+
+  if (typeof file_objs === 'object') {
+    if (typeof file_objs.file !== 'string')
+      throw new TypeError(`Expected file_objs.file to be of type string but was actually type ${typeof file_objs.file}.`)
+
+    return file_objs.file
+  }
+
+  throw new Error('file_objs is not the correct type.')
 }
