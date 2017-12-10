@@ -68,22 +68,21 @@ function while_monitoring(element) {
           if (events_heard.length > 0)
             reject(new Error(`Event (${events}) was heard before cause called.`))
 
-          cause = cause instanceof Promise ? cause : cause()
-          if (cause instanceof Promise)
-            cause.then(resolve).catch(reject)
+          ;(cause instanceof Promise ? cause : Promise.resolve().then(cause))
+            .then(() => {
+              setTimeout(function() {
+                events.forEach(e => {element.removeEventListener(e, listener)}) // no test for this
 
-          setTimeout(function() {
-            events.forEach(e => {element.removeEventListener(e, listener)}) // no test for this
-
-            if (events_heard.length === events.length) resolve(events_heard)
-            else {
-              const unheard_events = events.filter(e => !events_heard.includes(e))
-              reject(init_error.replaceStack(
-                new Error(`Event (${unheard_events.join(', ')}) was not heard after cause.`)
-              ))
-            }
-
-          }, timeout_ms)
+                if (events_heard.length === events.length) resolve(events_heard)
+                else {
+                  const unheard_events = events.filter(e => !events_heard.includes(e))
+                  reject(init_error.replaceStack(
+                    new Error(`Event (${unheard_events.join(', ')}) was not heard after cause.`)
+                  ))
+                }
+              }, timeout_ms)
+            })
+            .catch(reject)
         })
       }
 
@@ -118,17 +117,20 @@ function while_monitoring(element) {
           if (cause instanceof Promise)
             cause.then(resolve).catch(reject)
 
-          setTimeout(function() {
-            events.forEach(e => {element.removeEventListener(e, listener)}) // no test for this
+          ;(cause instanceof Promise ? cause : Promise.resolve().then(cause))
+            .then(() => {
+              setTimeout(function() {
+                events.forEach(e => {element.removeEventListener(e, listener)}) // no test for this
 
-            if (events_heard.length > 0) {
-              reject(init_error.replaceStack(
-                new Error(`${events_heard.join(', ')} was heard after cause.`)
-              ))
-            }
-            else resolve()
-
-          }, timeout_ms)
+                if (events_heard.length > 0) {
+                  reject(init_error.replaceStack(
+                    new Error(`${events_heard.join(', ')} was heard after cause.`)
+                  ))
+                }
+                else resolve()
+              }, timeout_ms)
+            })
+            .catch(reject)
         })
       }
 

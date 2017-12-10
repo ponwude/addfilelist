@@ -187,6 +187,77 @@ describe('while_monitoring', function() {
           })
         })
 
+        describe('is an async function that', function() {
+          it('resolves.', async function() {
+            let is_resolved = false
+
+            try {
+              await while_monitoring(document)
+                .expect(event_type)
+                .upon(async function() {
+                  document.dispatchEvent(new Event(event_type))
+                  await detach_thread(100)
+                  is_resolved = true
+                })
+            } catch (err) {throw err}
+
+            expect(is_resolved).to.be.true
+          })
+
+          it('throws error.', async function() {
+            const expected_error_msg = 'test error message'
+
+            try {
+              await while_monitoring(document)
+                .expect(event_type)
+                .upon(async function() {
+                  document.dispatchEvent(new Event(event_type))
+                  await detach_thread(100)
+                  throw new Error(expected_error_msg)
+                })
+
+              return Promise.reject(new Error('while_monitoring should not resolve when the cause async funtion throws an error.'))
+            } catch (err) {
+              expect(err.message).to.equal(expected_error_msg)
+            }
+          })
+
+          it('returns an promise that resolves.', async function() {
+            let is_resolved = false
+
+            try {
+              await while_monitoring(document)
+                .expect(event_type)
+                .upon(async function() {
+                  document.dispatchEvent(new Event(event_type))
+                  await detach_thread(100)
+                  return long_promise(() => {is_resolved = true}, 100)
+                })
+            } catch (err) {throw err}
+
+            expect(is_resolved).to.be.true
+          })
+
+          it('returns an promise that rejects.', async function() {
+            const expected_error_msg = 'test error message'
+
+            try {
+              await while_monitoring(document)
+                .expect(event_type)
+                .upon(async function() {
+                  document.dispatchEvent(new Event(event_type))
+                  await detach_thread(100)
+                  return long_promise(() => Promise.reject(new Error(expected_error_msg)), 100)
+                })
+
+              return Promise.reject(new Error('The cause async function returned a Promise that rejects and that rejected promise\'s error should have been thrown.'))
+            } catch (err) {
+              expect(err.message).to.equal(expected_error_msg)
+            }
+          })
+
+        })
+
       })
 
       it('with default argument.', function() {
@@ -424,6 +495,73 @@ describe('while_monitoring', function() {
               expect(err.message).to.equal(reject_msg)
             }
           })
+        })
+
+        describe('is an async function that', function() {
+          it('resolves.', async function() {
+            let is_resolved = false
+
+            try {
+              await while_monitoring(document)
+                .do_not_expect(event_type)
+                .upon(async function() {
+                  await detach_thread(100)
+                  is_resolved = true
+                })
+            } catch (err) {throw err}
+
+            expect(is_resolved).to.be.true
+          })
+
+          it('throws error.', async function() {
+            const expected_error_msg = 'test error message'
+
+            try {
+              await while_monitoring(document)
+                .do_not_expect(event_type)
+                .upon(async function() {
+                  await detach_thread(100)
+                  throw new Error(expected_error_msg)
+                })
+
+              return Promise.reject(new Error('while_monitoring should not resolve when the cause async funtion throws an error.'))
+            } catch (err) {
+              expect(err.message).to.equal(expected_error_msg)
+            }
+          })
+
+          it('returns an promise that resolves.', async function() {
+            let is_resolved = false
+
+            try {
+              await while_monitoring(document)
+                .do_not_expect(event_type)
+                .upon(async function() {
+                  await detach_thread(100)
+                  return long_promise(() => {is_resolved = true}, 100)
+                })
+            } catch (err) {throw err}
+
+            expect(is_resolved).to.be.true
+          })
+
+          it('returns an promise that rejects.', async function() {
+            const expected_error_msg = 'test error message'
+
+            try {
+              await while_monitoring(document)
+                .do_not_expect(event_type)
+                .upon(async function() {
+                  await detach_thread(100)
+                  return long_promise(() => Promise.reject(new Error(expected_error_msg)), 100)
+                })
+
+              return Promise.reject(new Error('The cause async function returned a Promise that rejects and that rejected promise\'s error should have been thrown.'))
+            } catch (err) {
+              expect(err.message).to.equal(expected_error_msg)
+            }
+          })
+
         })
 
       })
@@ -705,3 +843,56 @@ describe('Custom method String.removeLinesWith', function() {
 })
 
 
+function detach_thread(timeout=100) {
+  /* allows await to let go of the thread */
+  return new Promise(resolve => {
+    setTimeout(resolve, timeout)
+  })
+}
+
+describe('detach_thread', function() {
+  it('should allow another promise to fufill then finish.', async function() {
+    let is_resolved = false
+    // const resolve_later = Promise.resolve()
+    //   .then(() => {is_resolved = true})
+    const resolve_later = new Promise(resolve => {
+      setTimeout(function() {
+        is_resolved = true
+        resolve()
+      }, 1)
+    })
+
+    for (let i = 0; i < 1000; ++i) Math.sqrt(i) // take some time
+
+    expect(is_resolved).to.be.false
+    await detach_thread()
+    expect(is_resolved).to.be.true
+
+    return resolve_later
+  })
+})
+
+function long_promise(after_func, timeout=100) {
+  /* returns a Promise that with call after_func after the timeout */
+  return Promise.resolve(timeout)
+    .then(detach_thread)
+    .then(after_func)
+}
+
+describe('long_promise', function() {
+  it('should call after_func after the timeout.', async function() {
+    const timeout = 200
+    this.timeout(timeout + 100)
+    const start_time = Date.now()
+
+    let after_func_called = false
+    try {
+      await long_promise(() => after_func_called = true, timeout)
+    } catch(err) {throw err}
+
+    const total_time = Date.now() - start_time
+
+    expect(after_func_called).to.be.true
+    expect(total_time).to.be.greaterThan(timeout)
+  })
+})
