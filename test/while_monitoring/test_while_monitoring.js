@@ -893,6 +893,6 @@ describe('long_promise', function() {
     const total_time = Date.now() - start_time
 
     expect(after_func_called).to.be.true
-    expect(total_time).to.be.greaterThan(timeout)
+    expect(total_time).to.be.at.least(timeout)
   })
 })
