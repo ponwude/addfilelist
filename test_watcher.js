@@ -59,55 +59,54 @@ setup()
 
 
 async function setup() {
+  const init_functions = []
+
   for (let ri = 0; ri < relations.length; ++ri) {
-    const settings = relations[ri]
+    const {testing, watch_files, test_file} = relations[ri]
 
-    // files exist
+    const file_objects = [test_file].concat(watch_files)
+          file_paths = file_name(file_objects)
+
     try {
-      await Promise.all(file_name([settings.test_file].concat(settings.watch_files)).map(
-        file => fs.access(file)
-      ))
-    } catch(err) {
-      console.error(err)
-      process.exit(1)
-    }
+      await Promise.all(file_paths.map(fp => fs.access(fp)))
+    } catch(err) {log_exit(err)}
 
-    const eslint_files = settings.watch_files.filter(file => {
+    const eslint_files = file_objects.filter(file => {
       return typeof file === 'string' ||
             (typeof file === 'object' && !file.skip_eslint)
-    })
+    }).join(' ')
 
     const run_mocha_test = async function() {
       try {
         const {stdout, stderr} = await exec([
           'echo "exec start" &&',
-          `npx eslint ${eslint_files.join(' ')} &&`,
-          `echo "eslint passed: ${settings.watch_files.join(' ')}" &&`,
-          `echo "mocha results: ${settings.test_file}" &&`,
-          `npx mocha ${settings.test_file} || true`,
+          `npx eslint ${eslint_files} &&`,
+          `echo "eslint passed: ${eslint_files}" &&`,
+          `echo "mocha results: ${test_file}" &&`,
+          `npx mocha ${test_file} || true`,
         ].join(' '))
 
         console.log([
-          break_cml('start', settings.testing),
+          break_cml('start', testing),
           stdout,
           stderr,
-          break_cml('end', settings.testing),
+          break_cml('end', testing),
         ].join('\n'))
 
       } catch(err) {console.error(err)}
     }
 
-    chokidar.watch(settings.watch_files, {interval: rate_limit_time})
-      .on('change', rate_limit_drop(rate_limit_time, run_mocha_test))
-
     try {
-      run_mocha_test()
-    } catch(err) {
-      console.error(err)
-      process.exit(1)
-    }
+      chokidar.watch(file_paths, {interval: rate_limit_time})
+        .on('change', rate_limit_drop(rate_limit_time, run_mocha_test))
+    } catch(err) {log_exit(err)}
 
+    init_functions.push(run_mocha_test)
   }
+
+  try {
+    await Promise.all(init_functions.map(f => f()))
+  } catch(err) {log_exit(err)}
 }
 
 
@@ -152,4 +151,10 @@ function file_name(file_objs, depth=0) {
   }
 
   throw new Error('file_objs is not the correct type.')
+}
+
+function log_exit(err) {
+  if (err === undefined) err = new Error('log_exit requres an Error input.')
+  console.error(err)
+  process.exit(1)
 }
