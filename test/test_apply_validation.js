@@ -18,7 +18,7 @@ chai.use(require('chai-dom'))
 chai.should()
 const {expect} = chai
 
-const while_monitoring = require('./while_monitoring/while_monitoring.js')
+const { set_val } = require('./support_test_functions.js')
 
 
 describe('Test how the validation methods are applied.', function() {
@@ -102,85 +102,4 @@ describe('Test how the validation methods are applied.', function() {
     apply_validation(elements.form, schema)
   })
 
-})
-
-
-function set_val(input, val,
-  dispatch=['blur', 'change'],
-  resolve_events=['valid', 'invalid']
-) {
-  if (!Array.isArray(dispatch)) dispatch = [dispatch]
-  if (!Array.isArray(resolve_events)) resolve_events = [resolve_events]
-
-  return new Promise(resolve => {
-    input.value = val
-    dispatch.forEach(e => {input.dispatchEvent(new Event(e))})
-
-    if (resolve_events.length > 0) {
-      resolve_events.forEach(e => {
-        const listener = () => {
-          input.removeEventListener(e, listener)
-          resolve(e)
-        }
-        input.addEventListener(e, listener)
-      })
-    } else resolve()
-  })
-}
-
-describe('set_val', function() {
-  const single_event = 'ev0'
-  const multiple_events = Object.freeze(['ev1', 'ev2'])
-
-  let input
-  beforeEach(function() {
-    input = document.createElement('input')
-  })
-
-  describe('should dispatch', function() {
-    it('a single trigger event.', function() {
-      return while_monitoring(input)
-        .expect(single_event)
-        .upon(async () => {
-          try {
-            const set_val_promise = set_val(input, undefined, single_event)
-            input.dispatchEvent(new Event('valid'))
-            await set_val_promise
-          } catch(err) {throw err}
-        })
-    })
-
-    it('multiple trigger events.', function() {
-      return while_monitoring(input)
-        .expect(multiple_events)
-        .upon(() => set_val(input, undefined, multiple_events, []))
-    })
-  })
-
-  describe('should resolve on', function() {
-    it('a single event.', function() {
-      const set_val_promise = set_val(input, undefined, [], single_event)
-      input.dispatchEvent(new Event(single_event))
-      return set_val_promise
-    })
-
-    it('multiple events.', function() {
-      return Promise.all(multiple_events.map(event => {
-        const set_val_promise = set_val(input, undefined, [], multiple_events)
-        input.dispatchEvent(new Event(event))
-        return set_val_promise
-      }))
-    })
-
-    it('setting the value when there are no resolve events.', function() {
-      return set_val(input, undefined, [], [])
-    })
-  })
-
-  it('should set the input attribue value to val.', async function() {
-    const value = 'this is a value'
-    await set_val(input, value, [], [])
-
-    input.should.have.value(value)
-  })
 })

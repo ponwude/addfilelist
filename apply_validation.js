@@ -16,9 +16,6 @@ module.exports = function(form, schema) {
 
       const validate_promise = eval(spec.validate)
 
-      // input.addEventListener('click', function(e) {
-      // })
-
       const validate_listener = async () => {
         /*
         called when input should be checked

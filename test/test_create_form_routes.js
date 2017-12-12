@@ -5,11 +5,13 @@ const path = require('path')
 const http = require('http')
 const fs = require('then-fs')
 
+/*eslint-disable no-global-assign */
 const jsdom = require('jsdom')
 const { JSDOM } = jsdom
 const { window } = new JSDOM('<!DOCTYPE html><body></body>')
 const { document } = window.window
-// const Event = window.Event
+Event = window.Event
+/*eslint-enable no-global-assign */
 
 const create_form_routes = require('../create_form_routes.js') // testing
 
@@ -22,9 +24,10 @@ chai.use(require('chai-diff'))
 // chai.should()
 const { expect } = chai
 
-// const all_events = require('../all_events.js')
+const all_events = require('../all_events.js')
 
-const while_monitoring = require('./while_monitoring/while_monitoring.js')
+const while_monitoring = require('./while_monitoring.js')
+const { set_val } = require('./support_test_functions.js')
 
 
 const routes = {
@@ -72,7 +75,7 @@ app.use(function(err, req, res) {
 })
 const request = require('supertest')(app)
 
-
+const template_path = './form_template.html'
 const test_template =
 `<!DOCTYPE html>
 <html>
@@ -93,7 +96,6 @@ describe('get request should return an html form.', function() {
   const form_type_insert = '{{form_type}}'
 
   it('HTML template matches test HTML template.', async function() {
-    const template_path = './form_template.html'
     const file_template = await fs.readFile(template_path, 'utf8')
 
     expect(file_template).to.equal(test_template)
@@ -108,7 +110,7 @@ describe('get request should return an html form.', function() {
 
     const page_html = test_template
       .replace('{{form_html}}', form_builder(schema).outerHTML)
-      .replace('{{form_type}}', url)
+      .replace('{{form_type}}', JSON.stringify(url))
 
     return request
       .get(url)
@@ -123,7 +125,7 @@ describe('get request should return an html form.', function() {
 
     const page_html = test_template
       .replace('{{form_html}}', form_builder(schema).outerHTML)
-      .replace('{{form_type}}', url)
+      .replace('{{form_type}}', JSON.stringify(url))
 
     return request
       .get(url)
@@ -180,9 +182,7 @@ describe('Client side should display input validation error messages.', function
     const url = '/form1'
 
     const page_html = (await request.get(url)).text
-    await fs.writeFile('form_rendered.html', page_html)
 
-    // const virtualConsole = undefined
     const virtualConsole = new jsdom.VirtualConsole()
     let jsdomError = undefined
     virtualConsole.on('jsdomError', err => {jsdomError = err})
@@ -195,76 +195,56 @@ describe('Client side should display input validation error messages.', function
     })
     const { window } = dom
     const { document } = window.window
-    const form = document.body.querySelector('form')
-    if (jsdomError !== undefined) return Promise.reject(jsdomError)
+    if (jsdomError !== undefined) throw jsdomError
+
     try {
-      await Promise.all([
-        while_monitoring(document).expect('DOMContentLoaded').upon(),
-        while_monitoring(form).expect('validation_applied').upon(),
-      ])
-    } catch (err) {
-      return Promise.reject(err)
-    }
-
-
+      await while_monitoring(document).expect('DOMContentLoaded').upon()
+      expect(window.apply_validation).to.be.a('function')
+    } catch(err) {throw err}
   })
 
-  // it('Validate without error.', done => {
-  //   (async function() {
-  //     const url = '/form0'
-  //           good_values = routes[url][0]['good_values']
+  it('Validate without validation error.', async function() {
+    const url = '/form0',
+          good_values = routes[url][0]['good_values']
 
-  //     let page_html_let
-  //     try {
-  //       page_html_let = (await request.get(url)).text
+    const page_html = (await request.get(url)).text
 
-  //       const page_html = page_html_let
-  //       page_html_let = undefined
+    const virtualConsole = new jsdom.VirtualConsole()
+    let jsdomError = undefined
+    virtualConsole.on('jsdomError', err => {jsdomError = err})
+    virtualConsole.on('log', console.log.bind(console))
 
-  //       const dom = new JSDOM(page_html, {
-  //         url: local_url,
-  //         runScripts: 'dangerously',
-  //         resources: 'usable',
-  //       })
+    const dom = new JSDOM(page_html, {
+      url: local_url,
+      runScripts: 'dangerously',
+      resources: 'usable',
+      virtualConsole,
+    })
+    const { window } = dom
+    const { document } = window.window
+    if (jsdomError !== undefined) throw jsdomError
 
-  //       const { window } = dom
-  //       const { document } = window.window
+    const input = document.body.querySelector('input')
 
-  //       const form = document.body.getElementsByTagName('form')[0]
-  //       await async_event(form, 'validation_applied')
+    const dispatched_events = []
+    all_events.concat(['valid', 'invalid']).forEach(event_type => {
+      input.addEventListener(event_type, function(e) {
+        dispatched_events.push(e.type)
+      })
+    })
+    try {
+      // do not check on change until a blur event happens
+      await while_monitoring(input)
+        .do_not_expect(['valid', 'invalid'])
+        .upon(() => input.dispatchEvent(new Event('change')))
 
-  //       const input = document.body.querySelector('input')
+      await set_val(input, good_values[0], 'blur', 'valid')
 
+      await set_val(input, good_values[1], 'change', 'valid')
 
-
-  //       // console.log('1 input_event_queue', input_event_queue.map(event => event.type))
-  //       // input.value = good_values[0]
-  //       // input.dispatchEvent(new Event('change'))
-  //       // console.log('2 input_event_queue', input_event_queue.map(event => event.type))
-  //       // await async_event(input, 'change')
-  //       // console.log('3 input_event_queue', input_event_queue.map(event => event.type))
-  //       // window.eval("document.body.querySelector('input').dispatchEvent(new Event('click'))")
-  //       // console.log('4 input_event_queue', input_event_queue.map(event => event.type))
-  //       // await async_event(input, 'click')
-  //       // console.log('5 input_event_queue', input_event_queue.map(event => event.type))
-  //       // await async_no_event(input, input_events)
-
-  //       // input.dispatchEvent(new Event('blur'))
-  //       // console.log('6 input_event_queue', input_event_queue.map(event => event.type))
-  //       // await async_event(input, 'valid', 100)
-
-  //       await while_monitoring(input)
-  //         .do_not_expect(['valid', 'invalid'])
-  //         .upon(() => input.dispatchEvent(new Event('change')))
-
-  //       await while_monitoring(input)
-  //         .expect('valid')
-  //         .upon()
-
-  //       done()
-  //     } catch (err) {
-  //       done(err)
-  //     }
-  //   })()
-  // })
+    } catch(err) {
+      console.log('dispatched_events', dispatched_events)
+      throw err
+    }
+  })
 })

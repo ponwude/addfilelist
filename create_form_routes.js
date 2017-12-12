@@ -16,7 +16,7 @@ module.exports = function(form_schemas) {
 
     const form_page_html = form_template
       .replace('{{form_html}}', form_builder(schema, {document}).outerHTML)
-      .replace('{{form_type}}', route)
+      .replace('{{form_type}}', JSON.stringify(route))
 
     router.get(route, (req, res) => {
       res.set('Content-Type', 'text/html')

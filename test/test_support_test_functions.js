@@ -9,10 +9,11 @@ Event = window.Event
 
 const chai = require('chai')
 chai.use(require('chai-dom'))
-chai.should()
+// chai.should()
+const { expect } = chai
 
 const { set_val } = require('./support_test_functions.js')
-const while_monitoring = require('./while_monitoring/while_monitoring.js')
+const while_monitoring = require('./while_monitoring.js')
 
 
 describe('set_val', function() {
@@ -32,7 +33,7 @@ describe('set_val', function() {
           try {
             const set_val_promise = set_val(input, undefined, single_event)
             input.dispatchEvent(new Event('valid'))
-            await set_val_promise
+            return set_val_promise
           } catch(err) {throw err}
         })
     })
@@ -64,10 +65,25 @@ describe('set_val', function() {
     })
   })
 
+  it('dispatch events should not be dispatched before resolve listeners are set.', function() {
+    const event = 'dispatch_&_hear'
+    return set_val(input, undefined, event, event)
+  })
+
   it('should set the input attribue value to val.', async function() {
     const value = 'this is a value'
     await set_val(input, value, [], [])
 
-    input.should.have.value(value)
+    expect(input).to.have.value(value)
+  })
+
+  it('should reject when timeout elapses.', async function() {
+    const expected_events = ['elapses', 'another']
+
+    try {
+      await set_val(input, undefined, [], expected_events)
+    } catch(err) {
+      expect(err.message).to.equal(`Did not hear any of the resolve_events: ${expected_events.join(', ')}.`)
+    }
   })
 })

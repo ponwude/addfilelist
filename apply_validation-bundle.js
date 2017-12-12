@@ -1,5 +1,6 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 window.apply_validation = require('./apply_validation.js')
+
 },{"./apply_validation.js":2}],2:[function(require,module,exports){
 const Sequence = require('event_sequencing')
 
@@ -10,21 +11,14 @@ module.exports = function(form, schema) {
 
   form needs to contain the inputs with the name attributes that match schema names
   */
-  console.log(`apply validation\n\tform: ${form}`)
   schema
     .filter(spec => spec.validate !== undefined)
     .forEach(spec => {
-      console.log('spec', spec)
       const input = form.querySelector(`input[name="${spec.name}"]`),
             input_container = input.parentNode,
             error_text = input_container.querySelector('.input-error-msg')
-      console.log('input', input, input.name)
 
       const validate_promise = eval(spec.validate)
-
-      input.addEventListener('click', function(e) {
-        console.log('click event detected')
-      })
 
       const validate_listener = async () => {
         /*
@@ -33,12 +27,10 @@ module.exports = function(form, schema) {
         throws error if input error
         */
         try {
-          console.log('validate_listener try')
           await validate_promise.validate(input.value)
           input.classList.remove('input-error')
           input.dispatchEvent(new Event('valid'))
         } catch (err) {
-          console.log('validate_listener catch')
           error_text.innerHTML = err.name === 'ValidationError' ?
             err.details[0].message.replace('"value" ', '') :
             'Unknown Error'  // https://github.com/hapijs/joi/blob/v13.0.1/API.md#errors
@@ -49,7 +41,7 @@ module.exports = function(form, schema) {
       }
 
       Sequence(input)
-        .once('brush', validate_listener)
+        .once('blur', validate_listener)
         .repeat('change', validate_listener)
         .until.event('submit', form)
     })

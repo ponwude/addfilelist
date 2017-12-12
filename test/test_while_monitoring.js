@@ -13,7 +13,7 @@ const { document } = window.window
 Event = window.Event //asdfkasdf check if this needs to be a global
 /*eslint-enable no-global-assign */
 
-const add_method = require('../../add_method.js')
+const add_method = require('../add_method.js')
 
 describe('while_monitoring', function() {
 
@@ -811,11 +811,11 @@ describe('Check Error stack', function() {
   })
 
   it('Should not list while_monitoring in the trace.', function() {
-    const stack = {stack: 'Error: et0 was heard after cause.\n    at Timeout._onTimeout (/Users/williamrusnack/Documents/form_database/test/while_monitoring/while_monitoring.js:132:22)'}
+    const stack = {stack: 'Error: et0 was heard after cause.\n    at Timeout._onTimeout (/Users/williamrusnack/Documents/form_database/test/while_monitoring.js:132:22)'}
     expect(() => checkErrorStack(stack, false))
       .to.throw('Lists while_monitoring in trace.')
 
-    const stack_ok = {stack: 'Error: Event (et0) was not heard after cause.\n      at while_monitoring (/Users/williamrusnack/Documents/form_database/test/while_monitoring/while_monitoring.js:48:47)'}
+    const stack_ok = {stack: 'Error: Event (et0) was not heard after cause.\n      at while_monitoring (/Users/williamrusnack/Documents/form_database/test/while_monitoring.js:48:47)'}
     checkErrorStack(stack_ok, false)
   })
 

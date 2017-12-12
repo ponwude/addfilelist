@@ -44,11 +44,15 @@ Example of awaiting an event to happen upon a cause:
 Example of an event not happening upon a cause
 */
 
-const add_method = require('../../add_method.js')
+const { ImprovePromiseErrors } = require('./support_test_functions.js')
 
 
 function while_monitoring(element) {
-  const init_error = new WhileMonitoringError(new Error())
+  const init_error = new ImprovePromiseErrors(new Error(), [
+    'timers.js',
+    ['at', 'module.exports', 'while_monitoring.js'],
+    ['at', 'mocha'],
+  ])
 
   const default_wait = 10 // mili-seconds
 
@@ -150,38 +154,6 @@ function while_monitoring(element) {
     },
   }
 }
-
-
-function WhileMonitoringError(init_error) {
-  Object.getOwnPropertyNames(init_error).forEach(prop => {
-    this[prop] = init_error[prop]
-  })
-}
-
-WhileMonitoringError.prototype = new Error
-
-add_method('replaceStack', WhileMonitoringError, function(another_error) {
-  const to_return = new WhileMonitoringError(another_error)
-
-  to_return.stack = this.stack
-    .replace(/Error.*\n/g, 'Error: ' + another_error.message + '\n')
-    .removeLinesWith('timers.js')
-    .removeLinesWith(['at', 'module.exports', 'while_monitoring.js'])
-    .removeLinesWith(['at', 'mocha'])
-
-  return to_return
-})
-
-
-add_method('removeLinesWith', String, function(substring) {
-  return this
-    .split('\n')
-    .filter(Array.isArray(substring) ?
-      line => !substring.every(ss => line.includes(ss)) :
-      line => !line.includes(substring)
-    )
-    .join('\n')
-})
 
 
 module.exports = while_monitoring
