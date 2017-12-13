@@ -26,7 +26,7 @@ const relations = [
       'test//test_while_monitoring.js',
       'test/while_monitoring.js',
     ],
-    test_file: 'test//test_while_monitoring.js',
+    test_file: 'test/test_while_monitoring.js',
   },
   {
     testing: 'create_form_routes',
