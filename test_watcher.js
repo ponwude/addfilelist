@@ -6,16 +6,18 @@
 const chokidar = require('chokidar')
 const { exec } = require('child-process-promise')
 const fs = require('then-fs')
-const { resolve:path_resolve } = require('path')
+const { resolve: path_resolve } = require('path')
 const moment = require('moment')
 
 const {dependency_tree, sort_test_order} = require('./dependency_tree.js')
 
 const _ = require('lodash')
 
+
 const config = {
   apply_validation: {
     build() {
+      console.log('building apply_validation')
       return exec('npx browserify -e apply_validation-entry.js -o apply_validation-bundle.js')
     },
     // build_files: [
@@ -169,49 +171,54 @@ async function setup(config, queue_time=300) {
     }
   }
 
-  const tf2label = _.invert(_.mapValues(config, t => path_resolve(t.test_file)))
-  const test_order = sort_test_order(Object.values(dep_trees))
-    .map(tf => tf2label[tf])
 
-  console.log('-- test_order --\n' + '\t' + test_order.join('\n\t'))
+  const test_order = sort_test_order(_.fromPairs(
+    Object.keys(config).map(label => [
+      label,
+      {
+        src: config[label].to_test,
+        deptree: dep_trees[label],
+     },
+    ])
+  ))
 
-  // const order_queue = []
-  // let is_queuing = false
-  // try {
-  //   chokidar.watch(Array.from(watch_files))
-  //     .on('change', path => {
-  //       for (const label in dep_trees) {
-  //         if (dep_trees.hasOwnProperty(label) && dep_trees[label].contains(path)) {
-  //           order_queue.push(label)
-  //         }
-  //       }
+  const order_queue = []
+  let is_queuing = false
+  try {
+    chokidar.watch(Array.from(watch_files))
+      .on('change', path => {
+        for (const label in dep_trees) {
+          if (dep_trees.hasOwnProperty(label) && dep_trees[label].contains(path)) {
+            order_queue.push(label)
+          }
+        }
 
-  //       if (!is_queuing) {
-  //         is_queuing = true
+        if (!is_queuing) {
+          is_queuing = true
 
-  //         setTimeout(async function() {
-  //           const tests2run = _.sortBy(order_queue, t => test_order.indexOf(t))
+          setTimeout(async function() {
+            const tests2run = _.sortBy(order_queue, t => test_order.indexOf(t))
 
-  //           // reset queue
-  //           order_queue.length = 0
-  //           is_queuing = false
+            // reset queue
+            order_queue.length = 0
+            is_queuing = false
 
-  //           for (let t2ri = 0; t2ri < tests2run.length; ++t2ri) {
-  //             try {
-  //               const test_func = test_functions[tests2run[t2ri]]
-  //               const [passed, results] = await test_func()
-  //               console.log(results)
-  //               if (!passed) break
-  //             } catch(err) {log_exit(err)}
-  //           }
-  //         }, queue_time)
-  //       }
-  //     })
-  // } catch(err) {log_exit(err)}
+            for (let t2ri = 0; t2ri < tests2run.length; ++t2ri) {
+              try {
+                const test_func = test_functions[tests2run[t2ri]]
+                const [passed, results] = await test_func()
+                console.log(results)
+                if (!passed) break
+              } catch(err) {log_exit(err)}
+            }
+          }, queue_time)
+        }
+      })
+  } catch(err) {log_exit(err)}
 
-  // try {
-  //   await Promise.all(Object.values(test_functions).map(f => f()))
-  // } catch(err) {log_exit(err)}
+  try {
+    await Promise.all(Object.values(test_functions).map(f => f()))
+  } catch(err) {log_exit(err)}
 }
 
 

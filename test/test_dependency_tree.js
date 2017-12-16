@@ -211,6 +211,38 @@ describe('node', function() {
     expect(one.root_contains(root_node)).to.be.true
   })
 
+  // describe('shares_subtree', function() {
+  //   it('whole tree', function() {
+  //     const tree = new node('root')
+  //     expect(tree.shares_subtree(tree)).to.equal(tree)
+
+  //     tree.add_child('child')
+  //     expect(tree.shares_subtree(tree)).to.equal(tree)
+  //   })
+
+  //   it('check child nodes', function() {
+  //     const t1 = new node('t')
+  //     t1.add_child('c1')
+  //     const t2 = new node('t')
+  //     t2.add_child('c2')
+
+  //     expect(t1.shares_subtree(t2)).to.equal(null)
+  //   })
+
+  //   it('whole in sub', function() {
+  //     const t = new node('t'),
+  //           sub = t.add_child('sub')
+
+  //     expect(t.shares_subtree(sub)).to.equal(sub)
+  //     expect(sub.shares_subtree(t)).to.equal(sub)
+  //   })
+
+  //   it('sub sub', function() {
+  //     const t1 = new node('t1'),
+
+  //   })
+  // })
+
   it('num_nodes', function() {
     const t = new node('t')
     t.add_child('1').add_child('2')
@@ -341,7 +373,7 @@ describe('dependency_tree', function() {
       } catch(err) {throw err}
     })
   })
-  
+
 })
 
 
@@ -353,8 +385,12 @@ describe('sort_test_order', function() {
     const t1 = new node('t1')
     t1.add_child('1')
 
-    expect(sort_test_order([t0, t1])).to.eql(['t1', 't0'])
-    expect(sort_test_order([t1, t0])).to.eql(['t1', 't0'])
+    const file_to_tree = {
+      l0: {src: '0', deptree: t0},
+      l1: {src: '1', deptree: t1},
+    }
+
+    expect(sort_test_order(file_to_tree)).to.eql(['l1', 'l0'])
   })
 
   it('three simple linked trees', function() {
@@ -367,9 +403,13 @@ describe('sort_test_order', function() {
     const t2 = new node('t2')
     t2.add_child('2')
 
-    expect(sort_test_order([t0, t1, t2])).to.eql(['t2', 't1', 't0'])
-    expect(sort_test_order([t1, t0, t2])).to.eql(['t2', 't1', 't0'])
-    expect(sort_test_order([t1, t2, t0])).to.eql(['t2', 't1', 't0'])
+    const file_to_tree = {
+      l0: {src: '0', deptree: t0},
+      l1: {src: '1', deptree: t1},
+      l2: {src: '2', deptree: t2},
+    }
+
+    expect(sort_test_order(file_to_tree)).to.eql(['l2', 'l1', 'l0'])
   })
 
   it('three dependant trees.', function() {
@@ -384,9 +424,13 @@ describe('sort_test_order', function() {
     const t2 = new node('t2')
     t2.add_child('5')
 
-    expect(sort_test_order([t0, t1, t2])).to.eql(['t2', 't1', 't0'])
-    expect(sort_test_order([t1, t0, t2])).to.eql(['t2', 't1', 't0'])
-    expect(sort_test_order([t1, t2, t0])).to.eql(['t2', 't1', 't0'])
+    const file_to_tree = {
+      l0: {src: '0', deptree: t0},
+      l2: {src: '2', deptree: t1},
+      l5: {src: '5', deptree: t2},
+    }
+
+    expect(sort_test_order(file_to_tree)).to.eql(['l5', 'l2', 'l0'])
   })
 
   it('unrelated trees should be higher priority', function() {
@@ -401,31 +445,34 @@ describe('sort_test_order', function() {
     const t2 = new node('t2')
     t2.add_child('5')
 
-    expect(sort_test_order([t0, t1, t2])).to.eql(['t2', 't1', 't0'])
-    expect(sort_test_order([t1, t0, t2])).to.eql(['t2', 't1', 't0'])
-    expect(sort_test_order([t1, t2, t0])).to.eql(['t2', 't1', 't0'])
+    const file_to_tree = {
+      l0: {src: '0', deptree: t0},
+      l2: {src: '2', deptree: t1},
+      l5: {src: '5', deptree: t2},
+    }
+
+    expect(sort_test_order(file_to_tree)).to.eql(['l5', 'l2', 'l0'])
   })
 
   it('duel dependency', function() {
     const t0 = new node('t0')
-    t0.add_child('0')
+    t0.add_child('0') // duel dependency
     t0.add_child('1').add_child('2')
 
     const t1 = new node('t1')
     t1.add_child('2').add_child('3')
     t1.add_child('4').add_child('5')
-    t1.add_child('0')
+    t1.add_child('0') // duel dependency
 
     const t2 = new node('t2')
     t2.add_child('5')
 
-    // expect(sort_test_order([t0, t1, t2])).to.eql(['t2', 't1', 't0'])
-    // expect(sort_test_order([t1, t0, t2])).to.eql(['t2', 't1', 't0'])
-    // expect(sort_test_order([t1, t2, t0])).to.eql(['t2', 't1', 't0'])
+    const file_to_tree = {
+      l0: {src: '0', deptree: t0},
+      l2: {src: '2', deptree: t1},
+      l5: {src: '5', deptree: t2},
+    }
 
-    // no errors
-    sort_test_order([t0, t1, t2])
-    sort_test_order([t1, t0, t2])
-    sort_test_order([t1, t2, t0])
+    expect(sort_test_order(file_to_tree)).to.eql(['l5', 'l0', 'l2'])
   })
 })

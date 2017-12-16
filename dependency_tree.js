@@ -57,6 +57,10 @@ node.prototype.root_contains = function(str) {
   return this.get_root().contains(str)
 }
 
+// node.prototype.shares_subtree = function(node) {
+
+// }
+
 node.prototype.num_nodes = function() {
   return 1 + this.children.reduce((t, c) => t + c.num_nodes(), 0)
 }
@@ -131,42 +135,35 @@ async function dependency_tree(entry_file, options={}) {
 }
 
 
-/* dep_trees - Array of trees from dependency_tree
- */
-function sort_test_order(dep_trees) {
-  const over_dep_order = dep_trees.map(t => t.str)
+function sort_test_order(src_deptree) {
+  const over_dep_order = Object.keys(src_deptree)
   const over_dep_trees = {}
   over_dep_order.forEach(t => over_dep_trees[t] = new node(t))
 
-  for (let i1 = dep_trees.length - 1; i1 >= 1; --i1) {
-    const t1 = dep_trees[i1]
+  for (let i1 = over_dep_order.length - 1; i1 >= 1; --i1) {
+    const label_1 = over_dep_order[i1]
+    const {src: src1, deptree: dt1} = src_deptree[label_1]
 
     for (let i2 = i1 - 1; i2 >= 0; --i2) {
-      const t2 = dep_trees[i2]
+      const label_2 = over_dep_order[i2]
+      const {src: src2, deptree: dt2} = src_deptree[label_2]
 
-      const child_loop = function(ancestor, descendant) {
-        for (let ci = descendant.children.length - 1; ci >= 0; --ci) {
-          const descendant_entry = descendant.children[ci].str
+      const dt1_con_src2 = dt1.is_ancestor_of(src2),
+            dt2_con_src1 = dt2.is_ancestor_of(src1)
 
-          if (ancestor.is_ancestor_of(descendant_entry)) {
-            try {
-              over_dep_trees[ancestor.str].add_child_node(over_dep_trees[descendant.str])
-            } catch(err) {
-              break
-            }
-            break
-          }
-        }
-      }
-
-      child_loop(t1, t2)
-      child_loop(t2, t1)
+      if (dt1_con_src2 && dt2_con_src1)
+        continue
+      else if (dt1_con_src2)
+        over_dep_trees[label_1].add_child_node(over_dep_trees[label_2])
+      else if (dt2_con_src1)
+        over_dep_trees[label_2].add_child_node(over_dep_trees[label_1])
     }
   }
 
   over_dep_order.sort((a, b) => {
     const an = over_dep_trees[a],
           bn = over_dep_trees[b]
+
     const a_in_b = bn.is_ancestor_of(a),
           b_in_a = an.is_ancestor_of(b)
 
@@ -180,14 +177,13 @@ function sort_test_order(dep_trees) {
     else if (a_in_b) to_return = -1
     else if (b_in_a) to_return = 1
     else {
+      // console.log(path.basename(a), '---', path.basename(b))
       const a_num = an.num_nodes(), b_num = bn.num_nodes()
       if (a_num < b_num) to_return = -1
       else if (b_num < a_num) to_return = 1
       else {
-        const index_map = dep_trees.map(t => t.str)
-        const an = dep_trees[index_map.indexOf(a)],
-              bn = dep_trees[index_map.indexOf(b)]
-        const a_num = an.num_nodes(), b_num = bn.num_nodes()
+        const a_num = src_deptree[a].deptree.num_nodes(),
+              b_num = src_deptree[b].deptree.num_nodes()
         if (a_num < b_num) to_return = -1
         else if (b_num < a_num) to_return = 1
         else to_return = 0
