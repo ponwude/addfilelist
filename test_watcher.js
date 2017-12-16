@@ -6,7 +6,6 @@
 const chokidar = require('chokidar')
 const { exec } = require('child-process-promise')
 const fs = require('then-fs')
-const { resolve: path_resolve } = require('path')
 const moment = require('moment')
 
 const {dependency_tree, sort_test_order} = require('./dependency_tree.js')
@@ -16,36 +15,15 @@ const _ = require('lodash')
 
 const config = {
   apply_validation: {
-    build() {
-      console.log('building apply_validation')
-      return exec('npx browserify -e apply_validation-entry.js -o apply_validation-bundle.js')
-    },
-    // build_files: [
-    //   'apply_validation-entry.js',
-    //   'apply_validation-bundle.js',
-    // ],
-    // watch_files: [
-    //   'apply_validation.js',
-    //   'test/test_apply_validation.js',
-    // ],
+    build() {return exec('npx browserify -e apply_validation-entry.js -o apply_validation-bundle.js')},
     test_file: 'test/test_apply_validation.js',
     to_test: 'apply_validation.js',
   },
   while_monitoring: {
-    // watch_files: [
-    //   'test//test_while_monitoring.js',
-    //   'test/while_monitoring.js',
-    // ],
     test_file: 'test/test_while_monitoring.js',
     to_test: 'test/while_monitoring.js',
   },
   create_form_routes: {
-    // watch_files: [
-    //   'test/test_create_form_routes.js',
-    //   'create_form_routes.js',
-    //   {file: 'form_template.html', skip_eslint: true},
-    //   {file: 'apply_validation-bundle.js', skip_eslint: true},
-    // ],
     test_file: 'test/test_create_form_routes.js',
     to_test: 'create_form_routes.js',
     extra_dependancies: [
@@ -54,26 +32,14 @@ const config = {
     ],
   },
   form_builder: {
-    // watch_files: [
-    //   'test/test_form_builder.js',
-    //   'form_builder.js',
-    // ],
     test_file: 'test/test_form_builder.js',
     to_test: 'form_builder.js',
   },
   add_method: {
-    // watch_files: [
-    //   'test/test_add_method.js',
-    //   'add_method.js',
-    // ],
     test_file: 'test/test_add_method.js',
     to_test: 'add_method.js',
   },
   support_test_functions: {
-    // watch_files: [
-    //   'test/support_test_functions.js',
-    //   'test/test_support_test_functions.js',
-    // ],
     test_file: 'test/test_support_test_functions.js',
     to_test: 'test/support_test_functions.js',
   },
@@ -89,13 +55,13 @@ async function setup(config, queue_time=300) {
   const test_functions = {}
   const dep_trees = {}
 
+  // create the function to run for each test
   for (const label in config) {
     if (config.hasOwnProperty(label)) {
       const {
         test_file,
         to_test,
         build,
-        // build_files=[],
         extra_dependancies=[],
       } = config[label]
 
@@ -148,6 +114,7 @@ async function setup(config, queue_time=300) {
       Object.freeze(commands)
 
       test_functions[label] = async function() {
+        // function that will be called when the test for the specific label is called
         let results = break_cml('start', label)
         let passed = true
 
@@ -171,25 +138,25 @@ async function setup(config, queue_time=300) {
     }
   }
 
-
+  // priority of test runs. lower index has higher priority
   const test_order = sort_test_order(_.fromPairs(
     Object.keys(config).map(label => [
       label,
       {
         src: config[label].to_test,
         deptree: dep_trees[label],
-     },
+      },
     ])
   ))
 
-  const order_queue = []
+  const to_run_queue = new Set() // test labels that need to run
   let is_queuing = false
   try {
     chokidar.watch(Array.from(watch_files))
       .on('change', path => {
         for (const label in dep_trees) {
           if (dep_trees.hasOwnProperty(label) && dep_trees[label].contains(path)) {
-            order_queue.push(label)
+            to_run_queue.add(label)
           }
         }
 
@@ -197,10 +164,13 @@ async function setup(config, queue_time=300) {
           is_queuing = true
 
           setTimeout(async function() {
-            const tests2run = _.sortBy(order_queue, t => test_order.indexOf(t))
+            const tests2run = _.sortBy(
+              Array.from(to_run_queue),
+              t => test_order.indexOf(t)
+            )
 
             // reset queue
-            order_queue.length = 0
+            to_run_queue.clear()
             is_queuing = false
 
             for (let t2ri = 0; t2ri < tests2run.length; ++t2ri) {
@@ -228,42 +198,6 @@ function break_cml(str1='', str2='') {
   const dashes = '-'.repeat(num_dashes)
   return dashes + label + dashes + '\n'
 }
-
-
-// function rate_limit_drop(time_limit, func) {
-//   let last_run_time = 0
-
-//   return function() {
-//     const to_return = (last_run_time + time_limit < Date.now()) ?
-//       func(...arguments) :
-//       undefined
-
-//     last_run_time = Date.now()
-
-//     return to_return
-//   }
-// }
-
-// function get_file_name(file_objs, depth=0) {
-//   if (typeof file_objs === 'string')
-//     return file_objs
-
-//   if (Array.isArray(file_objs)) {
-//     if (depth > 0)
-//       throw new Error('file_objs cannot contain Arrays.')
-
-//     return file_objs.map(file => get_file_name(file, 1))
-//   }
-
-//   if (typeof file_objs === 'object') {
-//     if (typeof file_objs.file !== 'string')
-//       throw new TypeError(`Expected file_objs.file to be of type string but was actually type ${typeof file_objs.file}.`)
-
-//     return file_objs.file
-//   }
-
-//   throw new Error('file_objs is not the correct type.')
-// }
 
 function log_exit(err) {
   if (err === undefined) err = new Error('log_exit requres an Error input.')
