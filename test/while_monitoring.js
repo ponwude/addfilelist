@@ -2,10 +2,6 @@
 Used to monitor if an event is or is not dispatched upon some trigger function
 
 
-Require module:
-const while_monitoring = require('./while_monitoring.js')
-
-
 APIs:
   await while_monitoring(element).expect(events).upon(cause [, timeout_ms])
     Monitors element for the events to be dispatched when cause is called after

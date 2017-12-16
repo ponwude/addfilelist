@@ -3,7 +3,7 @@ const chai = require('chai')
 const { expect } = chai
 const path = require('path')
 
-const {node, dependancy_tree, sort_test_order} = require('../dependancy_tree.js')
+const {node, dependency_tree, sort_test_order} = require('../dependency_tree.js')
 
 
 describe('node', function() {
@@ -17,8 +17,8 @@ describe('node', function() {
 
   it('get_root', function() {
     const root_node = new node('parent'),
-            child0 = root_node.add_child('child0'),
-            child1 = child0.add_child('child1')
+          child0 = root_node.add_child('child0'),
+          child1 = child0.add_child('child1')
 
     expect(root_node.get_root()).to.equal(root_node)
     expect(child0.get_root()).to.equal(root_node)
@@ -30,6 +30,8 @@ describe('node', function() {
       const parent = new node('parent'),
             child0 = parent.add_child('child0'),
             child1 = parent.add_child('child1')
+
+      child0.add_child('child1')
 
       expect(parent.str).to.equal('parent')
       expect(parent.children).to.have.lengthOf(2)
@@ -63,8 +65,9 @@ describe('node', function() {
 
   describe('add_child_node', function() {
     it('normal add', function() {
-      const parent = new node('parent')
-      const child = new node('child')
+      const parent = new node('parent'),
+            child = new node('child'),
+            duplicate = new node('child')
 
       const returned = parent.add_child_node(child)
 
@@ -74,6 +77,8 @@ describe('node', function() {
       expect(parent.children[0]).to.equal(child)
 
       expect(child.parent).to.equal(parent)
+
+      parent.add_child_node(duplicate)
     })
 
     it('catch circular insert', function() {
@@ -97,6 +102,27 @@ describe('node', function() {
 
       expect(() => parent2.add_child_node(child))
         .to.throw(`Child "${child.str}" already has parent "${child.parent.str}"`)
+    })
+  })
+
+  describe('in_bloodline', function() {
+    it('line', function() {
+      const tree = new node('l0')
+      const l2 = tree.add_child('l1').add_child('l2')
+
+      expect(l2.in_bloodline('l2')).to.be.true
+      expect(l2.in_bloodline('l1')).to.be.true
+      expect(l2.in_bloodline('l0')).to.be.true
+
+      expect(l2.in_bloodline('l-1')).to.be.false
+    })
+
+    it('split', function() {
+      const parent = new node('parent'),
+            child = parent.add_child('child1')
+      parent.add_child('child2')
+
+      expect(child.in_bloodline('child2')).to.be.false
     })
   })
 
@@ -193,7 +219,18 @@ describe('node', function() {
     expect(t.num_nodes()).to.equal(6)
   })
 
-  it('print', function() {
+  it('flatten', function() {
+    const t = new node('t')
+    t.add_child('1').add_child('2')
+    t.add_child('3').add_child('4').add_child('5')
+
+    const ref = ['t', '1', '2', '3', '4', '5'].sort()
+    const flat = t.flatten().sort()
+
+    expect(flat).to.eql(ref)
+  })
+
+  it('to_string', function() {
     const t = new node('t')
     t.add_child('1').add_child('2')
     t.add_child('3').add_child('4').add_child('5')
@@ -210,11 +247,11 @@ describe('node', function() {
 })
 
 
-describe('dependancy_tree', function() {
+describe('dependency_tree', function() {
   it('bad file path', async function() {
     const bad_file_path = 'bad_file_path.js'
     try {
-      await dependancy_tree(bad_file_path)
+      await dependency_tree(bad_file_path)
 
       return Promise.reject(new Error('Does not fail on bad file path.'))
     } catch (err) {
@@ -223,10 +260,10 @@ describe('dependancy_tree', function() {
   })
 
   it('pets.js', async function() {
-    const entry = 'dependancy_tree_test_files/pets.js'
+    const entry = 'dependency_tree_test_files/pets.js'
 
     try {
-      const dt = await dependancy_tree(entry)
+      const dt = await dependency_tree(entry)
 
       const entry_dir = path.dirname(path.resolve(entry))
       expect(dt.str).to.equal(path.resolve(entry))
@@ -239,10 +276,10 @@ describe('dependancy_tree', function() {
   })
 
   it('name.js', async function() {
-    const entry = 'dependancy_tree_test_files/name.js'
+    const entry = 'dependency_tree_test_files/name.js'
 
     try {
-      const dt = await dependancy_tree(entry)
+      const dt = await dependency_tree(entry)
 
       const entry_dir = path.dirname(path.resolve(entry))
       expect(dt.str).to.equal(path.resolve(entry))
@@ -255,11 +292,11 @@ describe('dependancy_tree', function() {
   })
 
   it('max_depth exceded', async function() {
-    const entry = 'dependancy_tree_test_files/pets.js'
+    const entry = 'dependency_tree_test_files/pets.js'
     const max_depth = 0
 
     try {
-      await dependancy_tree(entry, {max_depth})
+      await dependency_tree(entry, {max_depth})
 
       return Promise.reject(new Error('Max depth error not throw.'))
     } catch(err) {
@@ -267,23 +304,44 @@ describe('dependancy_tree', function() {
     }
   })
 
-  it('should error on circular dependancy.', async function() {
-    const entry = 'dependancy_tree_test_files/circular.js'
+  describe('circular dependency', function() {
+    it('should error on circular dependency', async function() {
+      const entry = 'dependency_tree_test_files/circular.js'
 
-    try {
-      await new Promise((resolve, reject) => {
-        dependancy_tree(entry).then(resolve).catch(reject)
+      try {
+        await new Promise((resolve, reject) => {
+          dependency_tree(entry).then(resolve).catch(reject)
 
-        setTimeout(() => {
-          reject(new Error('Did not find circular dependancy (timed out).'))
-        }, 100)
-      })
+          setTimeout(() => {
+            reject(new Error('Did not find circular dependency (timed out).'))
+          }, 100)
+        })
 
-      return Promise.reject(new Error('Did not find circular dependancy.'))
-    } catch(err) {
-      expect(err.message).to.equal(`Found circular dependancy for ${path.resolve(entry)}`)
-    }
+        return Promise.reject(new Error('Did not find circular dependency.'))
+      } catch(err) {
+        const full_entry_path = path.resolve(entry)
+        expect(err.message).to.equal(
+          `Found circular dependency for ${full_entry_path} with root node of ${full_entry_path}.`
+        )
+      }
+    })
+
+    it('dependency twice in tree but not circular', async function() {
+      const entry = 'dependency_tree_test_files/double_require.js',
+            second = path.resolve('dependency_tree_test_files/double_require1.js')
+
+      try {
+        const tree = await dependency_tree(entry)
+
+        expect(tree.str).to.equal(path.resolve(entry))
+
+        tree.children.forEach(c => {
+          expect(c.str).to.equal(second)
+        })
+      } catch(err) {throw err}
+    })
   })
+  
 })
 
 
@@ -348,7 +406,7 @@ describe('sort_test_order', function() {
     expect(sort_test_order([t1, t2, t0])).to.eql(['t2', 't1', 't0'])
   })
 
-  it('duel dependancy', function() {
+  it('duel dependency', function() {
     const t0 = new node('t0')
     t0.add_child('0')
     t0.add_child('1').add_child('2')

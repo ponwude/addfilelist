@@ -14,7 +14,7 @@ node.prototype.get_root = function() {
 }
 
 node.prototype.add_child = function(str) {
-  if (this.root_contains(str))
+  if (this.in_bloodline(str))
     throw new Error(`Root node of ${this.str} already constains ${str}.`)
 
   const child = new node(str, this)
@@ -26,12 +26,20 @@ node.prototype.add_child_node = function(node) {
   if (node.parent !== null)
     throw new Error(`Child "${node.str}" already has parent "${node.parent.str}"`)
 
-  if (this.root_contains(node.str))
+  if (this.in_bloodline(node))
     throw new Error(`Root node of ${this.str} already constains ${node.str}.`)
 
   node.parent = this
   this.children.push(node)
   return this
+}
+
+node.prototype.in_bloodline = function(ancestor) {
+  if (ancestor instanceof node) ancestor = ancestor.str
+
+  if (this.str === ancestor) return true
+  if (this.parent === null) return false
+  return this.parent.in_bloodline(ancestor)
 }
 
 node.prototype.is_ancestor_of = function(str) {
@@ -53,6 +61,13 @@ node.prototype.num_nodes = function() {
   return 1 + this.children.reduce((t, c) => t + c.num_nodes(), 0)
 }
 
+node.prototype.flatten = function(container=[]) {
+  container.push(this.str)
+  this.children.forEach(c => {c.flatten(container)})
+
+  return container
+}
+
 node.prototype.to_string = function(indent=0) {
   const strings = []
 
@@ -71,7 +86,7 @@ node.prototype.to_string = function(indent=0) {
 }
 
 
-async function dependancy_tree(entry_file, options={}) {
+async function dependency_tree(entry_file, options={}) {
   const {parent, max_depth=100, depth=0} = options
 
   if (depth > max_depth) throw new Error(`Max depth of ${max_depth} exceded.`)
@@ -86,11 +101,13 @@ async function dependancy_tree(entry_file, options={}) {
       const file_node = new node(entry_file_full)
       return [file_node, file_node]
     }
+
     try {
       return [parent.add_child(entry_file_full), options.root_node]
     } catch(err) {
-      throw new Error(`Found circular dependancy for ${entry_file_full}`)
+      throw new Error(`Found circular dependency for ${entry_file_full} with root node of ${parent.get_root().str}.`)
     }
+
   })()
 
   const re = /\brequire\(\w*['"`](.*\.js)['"`]\w*\)/g
@@ -98,10 +115,10 @@ async function dependancy_tree(entry_file, options={}) {
   try {
     const file_str = await fs.readFile(entry_file_full)
 
-    let dependancy = undefined
-    while ((dependancy = re.exec(file_str)) !== null) {
-      const dep_path = path.join(entry_dir, dependancy[1]) // file path
-      await dependancy_tree(dep_path, {
+    let dependency = undefined
+    while ((dependency = re.exec(file_str)) !== null) {
+      const dep_path = path.join(entry_dir, dependency[1]) // file path
+      await dependency_tree(dep_path, {
         root_node,
         parent: file_node,
         max_depth,
@@ -114,6 +131,8 @@ async function dependancy_tree(entry_file, options={}) {
 }
 
 
+/* dep_trees - Array of trees from dependency_tree
+ */
 function sort_test_order(dep_trees) {
   const over_dep_order = dep_trees.map(t => t.str)
   const over_dep_trees = {}
@@ -184,6 +203,6 @@ function sort_test_order(dep_trees) {
 
 module.exports = {
   node,
-  dependancy_tree,
+  dependency_tree,
   sort_test_order,
 }
