@@ -30,4 +30,8 @@ module.exports = {
     test_file: 'test/test_support_test_functions.js',
     to_test: 'test/support_test_functions.js',
   },
+  dependency_tree: {
+    test_file: '/test/test_dependency_tree.js',
+    to_test: '/test/dependency_tree.js',
+  },
 }

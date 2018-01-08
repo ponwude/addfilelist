@@ -41,5 +41,6 @@ module.exports = {
         "eqeqeq": ['error', "always"],
         "no-plusplus": ['error', {"allowForLoopAfterthoughts": true}],
         "strict": ["error", "global"],
-    }
+        "eol-last": ["error", "always"],
+    },
 }
