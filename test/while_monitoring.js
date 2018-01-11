@@ -28,6 +28,7 @@ Chained Inputs:
   element - HTML element to monitor.
   events - Event type or types to listen for. Example 'click' or ['click', 'change']
   cause - A function that should cause the event to dispatched on element.
+  causal_event - String that specifies the event that will be dispatched on element
   timeout_ms - Wait time before checking if event has happned.
                Defaults to 10 mili-seconds.
 
@@ -50,7 +51,7 @@ function while_monitoring(element) {
     ['at', 'mocha'],
   ])
 
-  const default_wait = 10 // mili-seconds
+  const default_wait = 100 // mili-seconds
 
   return {
     expect(events) {
@@ -66,7 +67,7 @@ function while_monitoring(element) {
       const upon = (cause=()=>{}, timeout_ms=default_wait) => {
         return new Promise((resolve, reject) => {
           if (events_heard.length > 0)
-            reject(new Error(`Event (${events}) was heard before cause called.`))
+            reject(new Error(`Before upon trigger the following events were heard: ${events_heard.join(', ')}`))
 
           ;(cause instanceof Promise ? cause : Promise.resolve().then(cause))
             .then(() => {
@@ -111,7 +112,7 @@ function while_monitoring(element) {
       const upon = (cause=()=>{}, timeout_ms=default_wait) => {
         return new Promise((resolve, reject) => {
           if (events_heard.length > 0)
-            reject(new Error(`Event (${events}) was heard before cause called.`))
+            reject(new Error(`Before upon trigger the following events were heard: ${events_heard.join(', ')}`))
 
           cause = cause instanceof Promise ? cause : cause()
           if (cause instanceof Promise)

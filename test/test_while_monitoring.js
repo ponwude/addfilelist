@@ -270,6 +270,43 @@ describe('while_monitoring', function() {
         return wm_prom
       })
 
+      it('events heard before trigger', async function() {
+        const wm = while_monitoring(document)
+          .expect(['one', 'two', 'three'])
+
+        document.dispatchEvent(new Event('one'))
+        document.dispatchEvent(new Event('two'))
+        document.dispatchEvent(new Event('four'))
+
+        try {
+          await wm.upon()
+
+          return Promise.reject(new Error('Should have rejected because events were heard before upon trigger.'))
+        } catch (err) {
+          expect(err.message).to.equal('Before upon trigger the following events were heard: one, two')
+        }
+      })
+
+      it('if all events seen before full timeout it should resolve before.', async function() {
+        const timeout = 500,
+              max_time = 50,
+              start_time = Date.now()
+
+        const wm = while_monitoring(document)
+          .expect(['one', 'two'])
+          .upon(() => {}, timeout)
+
+        document.dispatchEvent(new Event('one'))
+        document.dispatchEvent(new Event('two'))
+
+        try {
+          await wm
+        } catch (err) {throw err}
+
+        const end_time = Date.now()
+
+        expect(end_time - start_time).to.be.below(max_time, 'is not resolving before timeout')
+      })
     })
 
     describe('upon_event', function() {
@@ -344,6 +381,23 @@ describe('while_monitoring', function() {
         expect(() => {
           while_monitoring(document).expect(event_type).upon_event(undefined)
         }).to.throw(TypeError, 'causal_event needs to be a String.')
+      })
+
+      it('events heard before trigger', async function() {
+        const wm = while_monitoring(document)
+          .expect(['one', 'two', 'three'])
+
+        document.dispatchEvent(new Event('one'))
+        document.dispatchEvent(new Event('two'))
+        document.dispatchEvent(new Event('four'))
+
+        try {
+          await wm.upon_event('hi')
+
+          return Promise.reject(new Error('Should have rejected because events were heard before upon trigger.'))
+        } catch (err) {
+          expect(err.message).to.equal('Before upon trigger the following events were heard: one, two')
+        }
       })
     })
   })
@@ -581,6 +635,23 @@ describe('while_monitoring', function() {
         }
       })
 
+      it('events heard before trigger', async function() {
+        const wm = while_monitoring(document)
+          .do_not_expect(['one', 'two', 'three'])
+
+        document.dispatchEvent(new Event('one'))
+        document.dispatchEvent(new Event('two'))
+        document.dispatchEvent(new Event('four'))
+
+        try {
+          await wm.upon()
+
+          return Promise.reject(new Error('Should have rejected because events were heard before upon trigger.'))
+        } catch (err) {
+          expect(err.message).to.equal('Before upon trigger the following events were heard: one, two')
+        }
+      })
+
     })
 
     describe('upon_event', function() {
@@ -659,6 +730,43 @@ describe('while_monitoring', function() {
         }).to.throw(TypeError, 'causal_event needs to be a String.')
       })
 
+      it('events heard before trigger', async function() {
+        const wm = while_monitoring(document)
+          .do_not_expect(['one', 'two', 'three'])
+
+        document.dispatchEvent(new Event('one'))
+        document.dispatchEvent(new Event('two'))
+        document.dispatchEvent(new Event('four'))
+
+        try {
+          await wm.upon_event('hi')
+
+          return Promise.reject(new Error('Should have rejected because events were heard before upon trigger.'))
+        } catch (err) {
+          expect(err.message).to.equal('Before upon trigger the following events were heard: one, two')
+        }
+      })
+
+      it('if events seen before full timeout it should reject before.', async function() {
+        const timeout = 500,
+              max_time = 50,
+              start_time = Date.now()
+
+        const wm = while_monitoring(document)
+          .do_not_expect(['one', 'two'])
+          .upon(() => {}, timeout)
+
+        document.dispatchEvent(new Event('one'))
+
+        try {
+          await wm
+
+          return Promise.reject(new Error('Did not reject.'))
+        } catch (err) {
+          const end_time = Date.now()
+          expect(end_time - start_time).to.be.below(max_time, 'is not rejecting before timeout')
+        }
+      })
     })
   })
 })
