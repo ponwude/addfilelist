@@ -20,7 +20,7 @@
   "dependencies": {
     "browserify": "^14.5.0",
     "celebrate": "^6.0.0",
-    "event_sequencing": "https://github.com/BebeSparkelSparkel/event_sequencing/archive/v0.0.1.tar.gz",
+    "event_sequencing": "github:BebeSparkelSparkel/event_sequencing",
     "express": "^4.16.2",
     "joi": "^13.0.1",
     "joi-browser": "^13.0.1",
@@ -36,6 +36,7 @@
     "chai-dom": "^1.6.0",
     "child-process-promise": "^2.2.1",
     "chokidar": "^1.7.0",
+    "combine-errors": "^3.0.3",
     "eslint": "^4.12.1",
     "lodash": "^4.17.4",
     "mocha": "^4.0.1",

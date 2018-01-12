@@ -52,26 +52,26 @@ module.exports = {
       input.value = val
 
       if (resolve_events.length > 0) {
-        const els = resolve_events.reduce((els, e) => {
-          const l = () => {
-            els.forEach(el => {input.removeEventListener(...el)})
-            resolve(e)
+        const els = resolve_events.reduce((els, event) => {
+          const listener = () => {
+            els.forEach(el => input.removeEventListener(...el) )
+            resolve(event)
           }
-          input.addEventListener(e, l)
-          els.push([e, l])
+          input.addEventListener(event, listener)
+          els.push([event, listener])
           return els
         }, [])
 
         setTimeout(() => {
-          els.forEach(el => {input.removeEventListener(...el)})
+          els.forEach(el => input.removeEventListener(...el) )
           reject(init_error.replaceStack(
             new Error(`Did not hear any of the resolve_events: ${resolve_events.join(', ')}.`)
           ))
         }, timeout)
 
-        dispatch.forEach(e => {input.dispatchEvent(new Event(e))})
+        dispatch.forEach(e => input.dispatchEvent(new Event(e)) )
       } else {
-        dispatch.forEach(e => {input.dispatchEvent(new Event(e))})
+        dispatch.forEach(e => input.dispatchEvent(new Event(e)) )
         resolve()
       }
 

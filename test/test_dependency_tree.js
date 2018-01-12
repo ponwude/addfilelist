@@ -1,4 +1,4 @@
-/*globals describe, it */
+/*globals describe, it, __dirname */
 const chai = require('chai')
 const { expect } = chai
 const path = require('path')
@@ -292,7 +292,7 @@ describe('dependency_tree', function() {
   })
 
   it('pets.js', async function() {
-    const entry = 'dependency_tree_test_files/pets.js'
+    const entry = path.join(__dirname, 'dependency_tree_test_files/pets.js')
 
     try {
       const dt = await dependency_tree(entry)
@@ -308,7 +308,7 @@ describe('dependency_tree', function() {
   })
 
   it('name.js', async function() {
-    const entry = 'dependency_tree_test_files/name.js'
+    const entry = path.join(__dirname, 'dependency_tree_test_files/name.js')
 
     try {
       const dt = await dependency_tree(entry)
@@ -324,7 +324,7 @@ describe('dependency_tree', function() {
   })
 
   it('max_depth exceded', async function() {
-    const entry = 'dependency_tree_test_files/pets.js'
+    const entry = path.join(__dirname, 'dependency_tree_test_files/pets.js')
     const max_depth = 0
 
     try {
@@ -338,7 +338,7 @@ describe('dependency_tree', function() {
 
   describe('circular dependency', function() {
     it('should error on circular dependency', async function() {
-      const entry = 'dependency_tree_test_files/circular.js'
+      const entry = path.join(__dirname, 'dependency_tree_test_files/circular.js')
 
       try {
         await new Promise((resolve, reject) => {
@@ -359,8 +359,8 @@ describe('dependency_tree', function() {
     })
 
     it('dependency twice in tree but not circular', async function() {
-      const entry = 'dependency_tree_test_files/double_require.js',
-            second = path.resolve('dependency_tree_test_files/double_require1.js')
+      const entry = path.join(__dirname, 'dependency_tree_test_files/double_require.js'),
+            second = path.join(__dirname, 'dependency_tree_test_files/double_require1.js')
 
       try {
         const tree = await dependency_tree(entry)

@@ -1,10 +1,6 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-window.apply_validation = require('./apply_validation.js')
-window.form_schemas = require('./try.js')
-},{"./apply_validation.js":2,"./try.js":5}],2:[function(require,module,exports){
 const Sequence = require('event_sequencing')
 
-/*eslint-disable no-console */
 
 module.exports = function(form, schema) {
   /*
@@ -12,14 +8,21 @@ module.exports = function(form, schema) {
 
   form needs to contain the inputs with the name attributes that match schema names
   */
+  console.log(`apply validation\n\tform: ${form}`)
   schema
     .filter(spec => spec.validate !== undefined)
     .forEach(spec => {
+      console.log('spec', spec)
       const input = form.querySelector(`input[name="${spec.name}"]`),
             input_container = input.parentNode,
             error_text = input_container.querySelector('.input-error-msg')
+      console.log('input', input, input.name)
 
       const validate_promise = eval(spec.validate)
+
+      input.addEventListener('click', function(e) {
+        console.log('click event detected')
+      })
 
       const validate_listener = async () => {
         /*
@@ -28,10 +31,12 @@ module.exports = function(form, schema) {
         throws error if input error
         */
         try {
+          console.log('validate_listener try')
           await validate_promise.validate(input.value)
           input.classList.remove('input-error')
           input.dispatchEvent(new Event('valid'))
         } catch (err) {
+          console.log('validate_listener catch')
           error_text.innerHTML = err.name === 'ValidationError' ?
             err.details[0].message.replace('"value" ', '') :
             'Unknown Error'  // https://github.com/hapijs/joi/blob/v13.0.1/API.md#errors
@@ -42,17 +47,15 @@ module.exports = function(form, schema) {
       }
 
       Sequence(input)
-        .once('blur', validate_listener)
+        .once('brush', validate_listener)
         .repeat('change', validate_listener)
-        .whenever('submit', form).restart()
-        .whenever('submit', form).call(validate_listener)
-
+        .until.event('submit', form)
     })
 
   return form
 }
 
-},{"event_sequencing":3}],3:[function(require,module,exports){
+},{"event_sequencing":2}],2:[function(require,module,exports){
 'use strict'
 
 module.exports = (function() {
@@ -118,7 +121,7 @@ module.exports = (function() {
   for (const sl in _setup_listener) { if (_setup_listener.hasOwnProperty(sl)) {
     const method = function(type, listener, target) {
       /* */
-      target = this._find_target(target)
+      target = this._find_default_target(target)
       listener = _setup_listener[sl](listener).bind(this)
 
       this._add({type, target, listener})
@@ -134,7 +137,7 @@ module.exports = (function() {
 
     this._add({
       type,
-      target: this._find_target(target),
+      target: this._find_default_target(target),
       listener: () => this._next(),
     })
 
@@ -151,71 +154,49 @@ module.exports = (function() {
       const last_listener_index = this.listener_queue.length - 1
 
       const out_methods = {
-        event: (type, target) => {
+        event: function(type, target) {
           // wait until event
           this._add(
             {
               type,
-              target: this._find_target(target),
-              listener: () => {
+              target: this._find_default_target(target),
+              listener: function() {
                 this._remove_listener(last_listener_index)
                 this._next()
-              },
+              }.bind(this),
             },
             true
           )
 
           return this
-        },
+        }.bind(this),
       }
 
       for (const sl in _setup_listener) {
         if (_setup_listener.hasOwnProperty(sl)) {
-          out_methods[sl] = (type, listener, target) => {
+          out_methods[sl] = function(type, listener, target) {
             const bound_listener = _setup_listener[sl](listener).bind(this)
 
             this._add(
               {
                 type,
-                target: this._find_target(target),
-                listener: (event) => {
+                target: this._find_default_target(target),
+                listener: function(event) {
                   this._remove_listener(last_listener_index)
                   bound_listener(event)
-                },
+                }.bind(this),
               },
               true
             )
 
             return this
-          }
+          }.bind(this)
         }
       }
 
       return out_methods
     },
   })
-
-  sequence.prototype.whenever = function(event, target) {
-    target = this._find_target(target)
-
-    return {
-      restart: () => {
-        target.addEventListener(event, () => {
-          if (this.queue_index < this.listener_queue.length)
-            this._remove_listener()
-          this.queue_index = -1
-          this._next()
-        })
-
-        return this
-      },
-
-      call: listener => {
-        target.addEventListener(event, listener)
-        return this
-      },
-    }
-  }
 
   sequence.prototype._add = function(another, launch_with_last=false) {
     /*
@@ -312,7 +293,7 @@ module.exports = (function() {
     })
   }
 
-  sequence.prototype._find_target = function(target) {
+  sequence.prototype._find_default_target = function(target) {
     /*
     Determines what target element to use.
 
@@ -326,7 +307,7 @@ module.exports = (function() {
   return constructor
 })()
 
-},{}],4:[function(require,module,exports){
+},{}],3:[function(require,module,exports){
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -12351,7 +12332,17 @@ module.exports = function(module) {
 /***/ })
 /******/ ]);
 });
-},{}],5:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
+const apply_validation = require('./apply_validation.js')
+
+const form_schemas = require('./try.js')
+
+const form = document.querySelector('form')
+apply_validation(form, form_schemas['/form0'])
+
+form.dispatchEvent(new Event('validation_applied'))
+
+},{"./apply_validation.js":1,"./try.js":5}],5:[function(require,module,exports){
 const Joi = require('joi')
 
 module.exports = {
@@ -12384,4 +12375,4 @@ module.exports = {
     },
   ],
 }
-},{"joi":4}]},{},[1]);
+},{"joi":3}]},{},[4]);

@@ -1,5 +1,6 @@
 const Sequence = require('event_sequencing')
 
+/*eslint-disable no-console */
 
 module.exports = function(form, schema) {
   /*
@@ -39,7 +40,9 @@ module.exports = function(form, schema) {
       Sequence(input)
         .once('blur', validate_listener)
         .repeat('change', validate_listener)
-        .until.event('submit', form)
+        .whenever('submit', form).restart()
+        .whenever('submit', form).call(validate_listener)
+
     })
 
   return form

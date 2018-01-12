@@ -52,27 +52,22 @@ async function setup(config, queue_time=300) {
       const commands = []
 
       const eslint_files = [test_file, to_test]
-      if (eslint_files.length > 0) {
-        const eslint_files_str = eslint_files.join(' ')
-        const exe_command = [
-          `npx eslint ${eslint_files_str}`,
-          `echo "eslint passed: ${eslint_files_str}"`,
-        ].join(' && ')
+      const eslint_files_str = eslint_files.join(' ')
+      const exe_command = [
+        `npx eslint ${eslint_files_str}`,
+        `echo "eslint passed: ${eslint_files_str}"`,
+      ].join(' && ')
 
-        commands.push(async () => {
-          try {
-            return (await exec(exe_command)).stdout
-          } catch(err) {throw err}
-        })
-      }
+      commands.push(async () => {
+        try {
+          return (await exec(exe_command)).stdout
+        } catch(err) {throw err}
+      })
 
       if (build !== undefined) commands.push(build)
 
       if (test_file !== undefined) {
-        const exe_command = [
-          `echo "Test File: ${test_file}"`,
-          `npx mocha ${test_file}`,
-        ].join(' && ')
+        const exe_command = `npx mocha ${test_file}`
 
         commands.push(async () => {
           try {
@@ -92,11 +87,10 @@ async function setup(config, queue_time=300) {
           try {
             results += await commands[ci]()
           } catch(err) {
-            if (err.stdout === undefined) log_exit(err)
+            if (err.stdout !== undefined) results += err.stdout
+            if (err.stderr !== undefined) results += err.stderr
 
-            results += err.stdout
             passed = false
-
             break
           }
         }
@@ -169,8 +163,7 @@ async function setup(config, queue_time=300) {
             for (let t2ri = 0; t2ri < tests2run.length; ++t2ri) {
               const label = tests2run[t2ri]
               try {
-                const test_func = test_functions[label]
-                const [passed, results] = await test_func()
+                const [passed, results] = await test_functions[label]()
                 console.log(results)
                 tests_passing[label] = passed
                 if (!passed) break

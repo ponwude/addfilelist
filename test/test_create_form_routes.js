@@ -5,6 +5,8 @@ const path = require('path')
 const http = require('http')
 const fs = require('then-fs')
 
+const combineErrors = require('combine-errors')
+
 /*eslint-disable no-global-assign */
 const jsdom = require('jsdom')
 const { JSDOM } = jsdom
@@ -23,8 +25,6 @@ chai.use(require('chai-diff'))
 // chai.use(require('chai-dom'))
 // chai.should()
 const { expect } = chai
-
-const all_events = require('../all_events.js')
 
 const while_monitoring = require('./while_monitoring.js')
 const { set_val } = require('./support_test_functions.js')
@@ -85,8 +85,15 @@ const test_template =
 {{form_html}}
 </body>
 </html>
-<script>var form_type = {{form_type}}</script>
 <script src="/apply_validation-bundle.js"></script>
+<script>
+var form_type = {{form_type}}
+apply_validation(document.querySelector('form'), form_schemas[form_type])
+</script>
+<script>
+if (window.run_if_loaded_for_test !== undefined)
+  window.run_if_loaded_for_test()
+</script>
 `
 
 
@@ -174,8 +181,7 @@ describe('Client side should display input validation error messages.', function
   })
   server.setTimeout(50)
 
-  before(done => {server.listen(port, hostname, done)})
-
+  before(done => {server.listen(port, hostname, undefined, done)})
   after(done => {server.close(done)})
 
   it('Page should load without error.', async function() {
@@ -204,34 +210,61 @@ describe('Client side should display input validation error messages.', function
   })
 
   it('Validate without validation error.', async function() {
+    expect(server.listening).to.be.true
+
     const url = '/form0',
           good_values = routes[url][0]['good_values']
 
     const page_html = (await request.get(url)).text
 
     const virtualConsole = new jsdom.VirtualConsole()
-    let jsdomError = undefined
-    virtualConsole.on('jsdomError', err => {jsdomError = err})
     virtualConsole.on('log', console.log.bind(console))
+    let vc_error = undefined
+    virtualConsole.sendTo({
+      error(_, err) {
+        if (vc_error !== undefined)
+          throw combineErrors([
+            new Error('Unhandled virtualConsole error below'),
+            vc_error,
+            new Error('when below error was thrown'),
+            err,
+          ])
 
-    const dom = new JSDOM(page_html, {
-      url: local_url,
-      runScripts: 'dangerously',
-      resources: 'usable',
-      virtualConsole,
+        vc_error = err
+      },
     })
+    const check_vc_error = () => {
+      if (vc_error !== undefined) {
+        const err = vc_error
+        vc_error = undefined
+        throw err
+      }
+    }
+
+    const dom = new JSDOM(
+      page_html,
+      {
+        url: local_url,
+        runScripts: 'dangerously',
+        resources: 'usable',
+        virtualConsole,
+      }
+    )
     const { window } = dom
+
+    // wait for page load
+    try {
+      await new Promise(resolve => {
+        console.log('await new Promise')
+        window.run_if_loaded_for_test = resolve
+      })
+    } catch(err) {throw err}
+    check_vc_error()
+
     const { document } = window.window
-    if (jsdomError !== undefined) throw jsdomError
 
     const input = document.body.querySelector('input')
 
-    const dispatched_events = []
-    all_events.concat(['valid', 'invalid']).forEach(event_type => {
-      input.addEventListener(event_type, function(e) {
-        dispatched_events.push(e.type)
-      })
-    })
     try {
       // do not check on change until a blur event happens
       await while_monitoring(input)
@@ -242,9 +275,6 @@ describe('Client side should display input validation error messages.', function
 
       await set_val(input, good_values[1], 'change', 'valid')
 
-    } catch(err) {
-      console.log('dispatched_events', dispatched_events)
-      throw err
-    }
+    } catch(err) {throw err}
   })
 })

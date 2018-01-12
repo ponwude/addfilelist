@@ -2,7 +2,6 @@ const { exec } = require('child-process-promise')
 
 module.exports = {
   apply_validation: {
-    build() {return exec('npx browserify -e apply_validation-entry.js -o apply_validation-bundle.js')},
     test_file: 'test/test_apply_validation.js',
     to_test: 'apply_validation.js',
   },
@@ -11,11 +10,15 @@ module.exports = {
     to_test: 'test/while_monitoring.js',
   },
   create_form_routes: {
+    build() {
+      const entry = 'apply_validation-entry.js',
+            bundle = 'apply_validation-bundle.js'
+      return exec(`npx browserify -e ${entry} -o ${bundle}`)
+    },
     test_file: 'test/test_create_form_routes.js',
     to_test: 'create_form_routes.js',
     extra_dependancies: [
       'apply_validation-entry.js',
-      'apply_validation-bundle.js',
       'form_template.html',
     ],
   },

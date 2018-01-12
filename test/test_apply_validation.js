@@ -18,6 +18,7 @@ chai.use(require('chai-dom'))
 chai.should()
 const {expect} = chai
 
+const while_monitoring = require('./while_monitoring.js')
 const { set_val } = require('./support_test_functions.js')
 
 
@@ -70,24 +71,24 @@ describe('Test how the validation methods are applied.', function() {
   it('No input error', async function() {
     const {input_1, input_2, error_msg_1, error_msg_2} = elements
 
-    const validity_1 = await set_val(input_1, input_1_vals.good)
-    expect(validity_1).to.equal('valid')
+    expect( await set_val(input_1, input_1_vals.good) )
+      .to.equal('valid')
     error_msg_1.should.have.text('')
 
-    const validity_2 = await set_val(input_2, input_2_vals.good)
-    expect(validity_2).to.equal('valid')
+    expect( await set_val(input_2, input_2_vals.good) )
+      .to.equal('valid')
     error_msg_2.should.have.text('')
   })
 
   it('Error for both inputs.', async function() {
     const {input_1, input_2, error_msg_1, error_msg_2} = elements
 
-    const validity_1 = await set_val(input_1, input_1_vals.bad)
-    expect(validity_1).to.equal('invalid')
+    expect( await set_val(input_1, input_1_vals.bad) )
+      .to.equal('invalid')
     error_msg_1.should.have.text(input_1_vals.error_msg)
 
-    const validity_2 = await set_val(input_2, input_2_vals.bad)
-    expect(validity_2).to.equal('invalid')
+    expect( await set_val(input_2, input_2_vals.bad) )
+      .to.equal('invalid')
     error_msg_2.should.have.text(input_2_vals.error_msg)
   })
 
@@ -100,6 +101,88 @@ describe('Test how the validation methods are applied.', function() {
     ]
 
     apply_validation(elements.form, schema)
+  })
+
+  describe('single blur and then multiple change events should trigger validation.', function() {
+    describe('initial blur event', function() {
+      it('valid', async function() {
+        const { input_1 } = elements
+
+        expect( await set_val(input_1, input_1_vals.good, 'blur') )
+          .to.equal('valid')
+      })
+
+      it('invalid', async function() {
+        const { input_1 } = elements
+
+        expect( await set_val(input_1, input_1_vals.bad, 'blur') )
+          .to.equal('invalid')
+      })
+    })
+
+    describe('multiple change events', function() {
+      beforeEach(async function() {
+        const { input_1 } = elements
+
+        await set_val(input_1, input_1_vals.good, 'blur')
+        input_1.value = ''
+      })
+
+      it('valid change', async function() {
+        const { input_1 } = elements
+
+        for (let i = 0; i < 2; ++i) {
+          expect( await set_val(input_1, input_1_vals.good, 'change') )
+            .to.equal('valid')
+        }
+      })
+
+      it('valid change', async function() {
+        const { input_1 } = elements
+
+        for (let i = 0; i < 2; ++i) {
+          expect( await set_val(input_1, input_1_vals.bad, 'change') )
+            .to.equal('invalid')
+        }
+      })
+    })
+  })
+
+  describe('form submit', function() {
+    it('inputs are validated', async function() {
+      const { form, input_1, input_2 } = elements
+
+      input_1.value = input_1_vals.good
+      input_2.value = input_2_vals.bad
+
+      try {
+        const validations = [
+          while_monitoring(input_1).expect('valid').upon(),
+          while_monitoring(input_2).expect('invalid').upon(),
+        ]
+
+        form.dispatchEvent(new Event('submit'))
+
+        await Promise.all(validations)
+
+      } catch(err) {throw err}
+
+    })
+
+    it('validate sequence restarted after form submit', async function() {
+      const { form, input_1 } = elements
+
+      input_1.value = input_1_vals.bad
+      try {
+        await while_monitoring(input_1)
+          .expect('invalid')
+          .upon(() => form.dispatchEvent(new Event('submit')))
+      } catch(err) {throw err}
+
+      input_1.value = input_1_vals.good
+
+      return set_val(input_1, input_1_vals.good, 'blur', 'valid')
+    })
   })
 
 })
