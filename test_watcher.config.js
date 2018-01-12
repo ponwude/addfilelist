@@ -16,6 +16,7 @@ module.exports = {
     extra_dependancies: [
       'apply_validation-entry.js',
       'apply_validation-bundle.js',
+      'form_template.html',
     ],
   },
   form_builder: {
@@ -31,7 +32,7 @@ module.exports = {
     to_test: 'test/support_test_functions.js',
   },
   dependency_tree: {
-    test_file: '/test/test_dependency_tree.js',
-    to_test: '/test/dependency_tree.js',
+    test_file: 'test/test_dependency_tree.js',
+    to_test: 'dependency_tree.js',
   },
 }

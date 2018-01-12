@@ -70,7 +70,7 @@ async function setup(config, queue_time=300) {
 
       if (test_file !== undefined) {
         const exe_command = [
-          `echo "${test_file}"`,
+          `echo "Test File: ${test_file}"`,
           `npx mocha ${test_file}`,
         ].join(' && ')
 
@@ -118,6 +118,8 @@ async function setup(config, queue_time=300) {
       },
     ])
   ))
+  const tests_passing = {}
+  test_order.forEach(label => tests_passing[label] = false)
 
   const to_run_queue = new Set() // test labels that need to run
   let is_queuing = false
@@ -127,6 +129,16 @@ async function setup(config, queue_time=300) {
         for (const label in dep_trees) {
           if (dep_trees.hasOwnProperty(label) && dep_trees[label].contains(path)) {
             to_run_queue.add(label)
+
+            // if dependant tests have not passed, add them too
+            let dependencies_passing = true
+            const label_order_index = test_order.indexOf(label)
+            for (let toi = 0; toi < label_order_index; ++toi) {
+              const dep_label = test_order[toi]
+
+              if (!tests_passing[dep_label]) dependencies_passing = false
+              if (!dependencies_passing) to_run_queue.add(dep_label)
+            }
           }
         }
 
@@ -134,6 +146,17 @@ async function setup(config, queue_time=300) {
           is_queuing = true
 
           setTimeout(async function() {
+            const init_toi = _.max(
+              Array.from(to_run_queue).map(label => test_order.indexOf(label))
+            )
+            for (
+              let toi = init_toi;
+              toi < test_order.length;
+              ++toi
+            ) {
+              to_run_queue.add(test_order[toi])
+            }
+
             const tests2run = _.sortBy(
               Array.from(to_run_queue),
               t => test_order.indexOf(t)
@@ -144,10 +167,12 @@ async function setup(config, queue_time=300) {
             is_queuing = false
 
             for (let t2ri = 0; t2ri < tests2run.length; ++t2ri) {
+              const label = tests2run[t2ri]
               try {
-                const test_func = test_functions[tests2run[t2ri]]
+                const test_func = test_functions[label]
                 const [passed, results] = await test_func()
                 console.log(results)
+                tests_passing[label] = passed
                 if (!passed) break
               } catch(err) {log_exit(err)}
             }
@@ -156,9 +181,23 @@ async function setup(config, queue_time=300) {
       })
   } catch(err) {log_exit(err)}
 
+  // run initial tests
   try {
-    await Promise.all(Object.values(test_functions).map(f => f()))
-  } catch(err) {log_exit(err)}
+    for (let toi = 0; toi < test_order.length; ++toi) {
+      const label = test_order[toi]
+      const [passed, results] = await test_functions[label]()
+      tests_passing[label] = passed
+      if (passed) console.log(`${label}: Passed`)
+      else {
+        console.log(`${label}: Failed`)
+        console.log(results)
+        break_cml('end', label)
+        break
+      }
+    }
+  } catch(err) {
+    log_exit(err)
+  }
 }
 
 
