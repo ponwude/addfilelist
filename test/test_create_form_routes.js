@@ -1,4 +1,4 @@
-/*global describe, it, __dirname, before, after */
+/*global describe, it, __dirname, before, beforeEach, after */
 /*eslint-disable no-console */
 
 const path = require('path')
@@ -184,41 +184,12 @@ describe('Client side should display input validation error messages.', function
   before(done => {server.listen(port, hostname, undefined, done)})
   after(done => {server.close(done)})
 
-  it('Page should load without error.', async function() {
-    const url = '/form1'
+  let virtualConsole, check_vc_error
+  beforeEach(() => {
+    virtualConsole = new jsdom.VirtualConsole()
 
-    const page_html = (await request.get(url)).text
-
-    const virtualConsole = new jsdom.VirtualConsole()
-    let jsdomError = undefined
-    virtualConsole.on('jsdomError', err => {jsdomError = err})
-
-    const dom = new JSDOM(page_html, {
-      url: local_url,
-      runScripts: 'dangerously',
-      resources: 'usable',
-      virtualConsole,
-    })
-    const { window } = dom
-    const { document } = window.window
-    if (jsdomError !== undefined) throw jsdomError
-
-    try {
-      await while_monitoring(document).expect('DOMContentLoaded').upon()
-      expect(window.apply_validation).to.be.a('function')
-    } catch(err) {throw err}
-  })
-
-  it('Validate without validation error.', async function() {
-    expect(server.listening).to.be.true
-
-    const url = '/form0',
-          good_values = routes[url][0]['good_values']
-
-    const page_html = (await request.get(url)).text
-
-    const virtualConsole = new jsdom.VirtualConsole()
     virtualConsole.on('log', console.log.bind(console))
+
     let vc_error = undefined
     virtualConsole.sendTo({
       error(_, err) {
@@ -233,14 +204,17 @@ describe('Client side should display input validation error messages.', function
         vc_error = err
       },
     })
-    const check_vc_error = () => {
+
+    check_vc_error = () => {
       if (vc_error !== undefined) {
         const err = vc_error
         vc_error = undefined
         throw err
       }
     }
+  })
 
+  const load_page = async page_html => {
     const dom = new JSDOM(
       page_html,
       {
@@ -254,16 +228,42 @@ describe('Client side should display input validation error messages.', function
 
     // wait for page load
     try {
-      await new Promise(resolve => {
-        console.log('await new Promise')
+      await new Promise((resolve, reject) => {
         window.run_if_loaded_for_test = resolve
+        setTimeout(reject, 200)
       })
     } catch(err) {throw err}
+
     check_vc_error()
 
-    const { document } = window.window
+    return {dom, window, document: window.window.document}
+  }
 
-    const input = document.body.querySelector('input')
+  it('Page should load without error.', async function() {
+    const url = '/form1'
+
+    const page_html = (await request.get(url)).text
+
+    try {
+      const { window } = await load_page(page_html)
+
+      expect(window.form_type).to.equal(url)
+      expect(window.apply_validation).to.be.a('function')
+    } catch(err) {throw err}
+  })
+
+  it('validate with repeating blur -> change (repeat) -> submit cycle', async function() {
+    expect(server.listening).to.be.true
+
+    const url = '/form0'
+    const { good_values, bad_values } = routes[url][0]
+
+    const page_html = (await request.get(url)).text
+
+    const { document } = await load_page(page_html)
+
+    const input = document.body.querySelector('input'),
+          form = document.body.querySelector('form')
 
     try {
       // do not check on change until a blur event happens
@@ -272,8 +272,18 @@ describe('Client side should display input validation error messages.', function
         .upon(() => input.dispatchEvent(new Event('change')))
 
       await set_val(input, good_values[0], 'blur', 'valid')
-
       await set_val(input, good_values[1], 'change', 'valid')
+      await set_val(input, good_values[1], 'change', 'valid')
+      await while_monitoring(input).expect('valid').upon(() => {
+        form.dispatchEvent(new Event('submit'))
+      })
+
+      await set_val(input, bad_values[0], 'blur', 'invalid')
+      await set_val(input, bad_values[1], 'change', 'invalid')
+      await set_val(input, bad_values[1], 'change', 'invalid')
+      await while_monitoring(input).expect('invalid').upon(() => {
+        form.dispatchEvent(new Event('submit'))
+      })
 
     } catch(err) {throw err}
   })
