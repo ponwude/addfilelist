@@ -1,6 +1,6 @@
-/*global describe it beforeEach */
+/*global describe, it, beforeEach */
 
-/*eslint-disable no-global-assign, no-undef, no-console */
+/*eslint-disable no-global-assign, no-undef */
 Joi = require('joi-browser')
 
 const { JSDOM } = require('jsdom')

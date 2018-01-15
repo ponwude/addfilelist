@@ -195,11 +195,8 @@ describe('while_monitoring', function() {
               await while_monitoring(document)
                 .expect(event_type)
                 .upon(async function() {
-                  /*eslint-disable no-console */
-                  console.log('async dispatchEvent')
                   document.dispatchEvent(new Event(event_type))
                   await detach_thread(200)
-                  console.log('async reattach')
                   is_resolved = true
                 })
             } catch (err) {throw err}

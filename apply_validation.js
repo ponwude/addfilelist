@@ -1,7 +1,5 @@
 const Sequence = require('event_sequencing')
 
-/*eslint-disable no-console */
-
 module.exports = function(form, schema) {
   /*
   Applies the validaton to the from from schema.

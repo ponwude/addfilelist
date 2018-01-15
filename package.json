@@ -4,7 +4,7 @@
   "description": "Web form with front and back validation that inserts values into a server.",
   "main": "index.js",
   "scripts": {
-    "test": "npx mocha test/test_eslint_with_mocha.js && npx mocha $(ls -d -1 $PWD/test/*.js | grep -v eslint)",
+    "test": "node test_watcher.js)",
     "build": "npx browserify -e apply_validation-entry.js -o apply_validation-bundle.js"
   },
   "repository": {
@@ -20,11 +20,13 @@
   "dependencies": {
     "browserify": "^14.5.0",
     "celebrate": "^6.0.0",
+    "concat-stream-promise": "^0.1.1",
     "event_sequencing": "github:BebeSparkelSparkel/event_sequencing",
     "express": "^4.16.2",
     "joi": "^13.0.1",
     "joi-browser": "^13.0.1",
     "jsdom": "^11.5.1",
+    "string-to-stream": "^1.1.0",
     "tinyify": "^2.4.0",
     "uglify-js": "^3.2.1"
   },
@@ -32,6 +34,7 @@
     "babel-cli": "^6.26.0",
     "babel-preset-env": "^1.6.1",
     "chai": "^4.1.2",
+    "chai-as-promised": "^7.1.1",
     "chai-diff": "^1.0.1",
     "chai-dom": "^1.6.0",
     "child-process-promise": "^2.2.1",
