@@ -1,5 +1,4 @@
-/*eslint-disable no-unused-vars, no-console */
-/*global describe, context, it, __dirname, before, beforeEach, after, afterEach */
+/*global describe, it, __dirname, before, beforeEach, after, afterEach */
 
 const express = require('express')
 const supertest = require('supertest')
@@ -10,18 +9,10 @@ const fs = require('then-fs')
 
 const combineErrors = require('combine-errors')
 
-/*eslint-disable no-global-assign */
 const jsdom = require('jsdom')
 const { JSDOM } = jsdom
-const { window } = new JSDOM('<!DOCTYPE html><body></body>')
-const { document } = window.window
-Event = window.Event
-/*eslint-enable no-global-assign */
 
 const create_form_routes = require('../create_form_routes.js') // testing
-
-const fb = require('../form_builder.js')
-const form_builder =  (schema, options={}) => fb(schema, Object.assign({document}, options))
 
 const chai = require('chai')
 chai.use(require('chai-diff'))
@@ -31,9 +22,6 @@ const { expect } = chai
 const while_monitoring = require('./while_monitoring.js')
 const { set_val } = require('./support_test_functions.js')
 
-
-const form_html_insert = '{{form_html}}'
-const form_type_insert = '{{form_type}}'
 const form_schema_path = path.join(__dirname, './form_schema_example.js')
 const form_schemas = require(form_schema_path)
 
@@ -46,7 +34,7 @@ describe('Ensure html contains required code', function() {
       `
 
     return expect(create_form_routes(template))
-      .to.be.rejectedWith(`Form template missing: ${form_html_insert}`)
+      .to.be.rejectedWith('Form template missing: {{form_html}}')
   })
 
   it('form_type', function() {
@@ -229,7 +217,7 @@ describe('run app', async function() {
 
       check_vc_error()
 
-      return {dom, window, document: window.window.document}
+      return {dom, window, document: window.window.document, Event: window.Event}
     }
 
     it('Page should load without error.', async function() {
@@ -253,7 +241,8 @@ describe('run app', async function() {
 
       const page_html = (await request.get(url)).text
 
-      const { document } = await load_page(page_html)
+      const { document, Event } = await load_page(page_html)
+      set_val.Event = Event
 
       const input = document.body.querySelector('input'),
             form = document.body.querySelector('form')
@@ -264,16 +253,16 @@ describe('run app', async function() {
           .do_not_expect(['valid', 'invalid'])
           .upon(() => input.dispatchEvent(new Event('change')))
 
-        await set_val(input, good_values[0], 'blur', 'valid')
-        await set_val(input, good_values[1], 'change', 'valid')
-        await set_val(input, good_values[1], 'change', 'valid')
+        await set_val(input, good_values[0], {dispatch: 'blur', resolve_events: 'valid'})
+        await set_val(input, good_values[1], {dispatch: 'change', resolve_events: 'valid'})
+        await set_val(input, good_values[1], {dispatch: 'change', resolve_events: 'valid'})
         await while_monitoring(input).expect('valid').upon(() => {
           form.dispatchEvent(new Event('submit'))
         })
 
-        await set_val(input, bad_values[0], 'blur', 'invalid')
-        await set_val(input, bad_values[1], 'change', 'invalid')
-        await set_val(input, bad_values[1], 'change', 'invalid')
+        await set_val(input, bad_values[0], {dispatch: 'blur', resolve_events: 'invalid'})
+        await set_val(input, bad_values[1], {dispatch: 'change', resolve_events: 'invalid'})
+        await set_val(input, bad_values[1], {dispatch: 'change', resolve_events: 'invalid'})
         await while_monitoring(input).expect('invalid').upon(() => {
           form.dispatchEvent(new Event('submit'))
         })

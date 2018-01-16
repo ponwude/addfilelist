@@ -94,7 +94,7 @@ function while_monitoring(element) {
             throw new TypeError('causal_event needs to be a String.')
 
           return upon(
-            () => {element.dispatchEvent(new Event(causal_event))},
+            () => {element.dispatchEvent(new while_monitoring.Event(causal_event))},
             timeout_ms
           )
         },
@@ -142,7 +142,7 @@ function while_monitoring(element) {
             throw new TypeError('causal_event needs to be a String.')
 
           return upon(
-            () => {element.dispatchEvent(new Event(causal_event))},
+            () => {element.dispatchEvent(new while_monitoring.Event(causal_event))},
             timeout_ms
           )
         },
@@ -150,6 +150,11 @@ function while_monitoring(element) {
 
     },
   }
+}
+try{
+  while_monitoring.Event = window.Event
+} catch(err) {
+  while_monitoring.Event = undefined
 }
 
 

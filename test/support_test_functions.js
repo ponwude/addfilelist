@@ -32,50 +32,57 @@ add_method('removeLinesWith', String, function(substring) {
 })
 
 
-module.exports = {
-  ImprovePromiseErrors,
-
-  /* Sets the value of a DOM element with event dispatches. */
-  set_val(
-    input, // expected to be an input element
-    val, // value to set the input attribute value to
+/* Sets the value of a DOM element with event dispatches. */
+function set_val(
+  input, // expected to be an input element
+  val, // value to set the input attribute value to
+  {
     dispatch=['blur', 'change'], // dispatch events after event is set. String, Array of Strings, empty Array
     resolve_events=['valid', 'invalid'], // wait for events to be dispatched before promise is resolved. String, Array of Strings, empty Array
-    timeout=100
-  ) {
-    if (!Array.isArray(dispatch)) dispatch = [dispatch]
-    if (!Array.isArray(resolve_events)) resolve_events = [resolve_events]
+    timeout=100,
+  }={}
+) {
+  if (!Array.isArray(dispatch)) dispatch = [dispatch]
+  if (!Array.isArray(resolve_events)) resolve_events = [resolve_events]
 
-    const init_error = new ImprovePromiseErrors(new Error())
+  const init_error = new ImprovePromiseErrors(new Error())
 
-    return new Promise((resolve, reject) => {
-      input.value = val
+  return new Promise((resolve, reject) => {
+    input.value = val
 
-      if (resolve_events.length > 0) {
-        const els = resolve_events.reduce((els, event) => {
-          const listener = () => {
-            els.forEach(el => input.removeEventListener(...el) )
-            resolve(event)
-          }
-          input.addEventListener(event, listener)
-          els.push([event, listener])
-          return els
-        }, [])
-
-        setTimeout(() => {
+    if (resolve_events.length > 0) {
+      const els = resolve_events.reduce((els, event) => {
+        const listener = () => {
           els.forEach(el => input.removeEventListener(...el) )
-          reject(init_error.replaceStack(
-            new Error(`Did not hear any of the resolve_events: ${resolve_events.join(', ')}.`)
-          ))
-        }, timeout)
+          resolve(event)
+        }
+        input.addEventListener(event, listener)
+        els.push([event, listener])
+        return els
+      }, [])
 
-        dispatch.forEach(e => input.dispatchEvent(new Event(e)) )
-      } else {
-        dispatch.forEach(e => input.dispatchEvent(new Event(e)) )
-        resolve()
-      }
+      setTimeout(() => {
+        els.forEach(el => input.removeEventListener(...el) )
+        reject(init_error.replaceStack(
+          new Error(`Did not hear any of the resolve_events: ${resolve_events.join(', ')}.`)
+        ))
+      }, timeout)
 
-    })
-  },
+      dispatch.forEach(e => input.dispatchEvent(new set_val.Event(e)) )
+    } else {
+      dispatch.forEach(e => input.dispatchEvent(new set_val.Event(e)) )
+      resolve()
+    }
+
+  })
+}
+try{
+  set_val.Event = window.Event
+} catch(err) {
+  set_val.Event = undefined
 }
 
+module.exports = {
+  ImprovePromiseErrors,
+  set_val,
+}

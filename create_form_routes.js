@@ -1,5 +1,4 @@
 /*globals __dirname */
-/*eslint-disable no-console */
 
 const fs = require('then-fs')
 
@@ -31,7 +30,7 @@ const template_needs = Object.freeze({
 })
 
 
-module.exports = async function(form_template, form_schema_path) {
+async function create_form_routes(form_template, form_schema_path) {
   // check form_template
   const needs_indicies = {}
   for (const needs in template_needs) {
@@ -58,7 +57,6 @@ module.exports = async function(form_template, form_schema_path) {
     const entry = apply_validation_entry
       .replace('{{form_schema_path}}', form_schema_path)
 
-    /*eslint-disable no-unused-vars */
     const bundle = (await new Promise((resolve, reject) => {
       try {
         browserify(str(entry), {basedir: __dirname})
@@ -96,3 +94,6 @@ module.exports = async function(form_template, form_schema_path) {
   } catch(err) {throw err}
 
 }
+
+
+module.exports = create_form_routes

@@ -4,8 +4,7 @@
   "description": "Web form with front and back validation that inserts values into a server.",
   "main": "index.js",
   "scripts": {
-    "test": "node test_watcher.js)",
-    "build": "npx browserify -e apply_validation-entry.js -o apply_validation-bundle.js"
+    "test": "npx eslint test_watcher.js test_watcher.config.js && node test_watcher.js"
   },
   "repository": {
     "type": "git",

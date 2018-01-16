@@ -1,17 +1,15 @@
 /*global describe, it */
 
-const while_monitoring = require('./while_monitoring.js')
-
 const chai = require('chai')
 const { expect } = chai
 chai.should()
 
-/*eslint-disable no-global-assign */
 const { JSDOM } = require('jsdom')
 const window = new JSDOM('<!DOCTYPE html><body></body>').window
-const { document } = window.window
-Event = window.Event //asdfkasdf check if this needs to be a global
-/*eslint-enable no-global-assign */
+const { window: document, Event } = window.window
+
+const while_monitoring = require('./while_monitoring.js')
+while_monitoring.Event = Event
 
 const add_method = require('../add_method.js')
 

@@ -1,18 +1,15 @@
 /*global describe, it, beforeEach */
 
-/*eslint-disable no-global-assign */
 const { JSDOM } = require('jsdom')
-window = new JSDOM('<!DOCTYPE html><body></body>').window
-const document = window.window.document
-Event = window.Event
-/*eslint-enable no-global-assign */
+const window = new JSDOM('<!DOCTYPE html><body></body>').window
+const { document, Event } = window.window
 
 const chai = require('chai')
-chai.use(require('chai-dom'))
-// chai.should()
 const { expect } = chai
 
 const { set_val } = require('./support_test_functions.js')
+set_val.Event = Event
+
 const while_monitoring = require('./while_monitoring.js')
 
 
@@ -31,7 +28,7 @@ describe('set_val', function() {
         .expect(single_event)
         .upon(async () => {
           try {
-            const set_val_promise = set_val(input, undefined, single_event)
+            const set_val_promise = set_val(input, undefined, {dispatch: single_event})
             input.dispatchEvent(new Event('valid'))
             return set_val_promise
           } catch(err) {throw err}
@@ -41,49 +38,57 @@ describe('set_val', function() {
     it('multiple trigger events.', function() {
       return while_monitoring(input)
         .expect(multiple_events)
-        .upon(() => set_val(input, undefined, multiple_events, []))
+        .upon(() => set_val(input, undefined, {dispatch: multiple_events, resolve_events: []}))
     })
   })
 
   describe('should resolve on', function() {
     it('a single event.', function() {
-      const set_val_promise = set_val(input, undefined, [], single_event)
+      const set_val_promise = set_val(input, undefined, {dispatch: [], resolve_events: single_event})
       input.dispatchEvent(new Event(single_event))
       return set_val_promise
     })
 
     it('multiple events.', function() {
       return Promise.all(multiple_events.map(event => {
-        const set_val_promise = set_val(input, undefined, [], multiple_events)
+        const set_val_promise = set_val(input, undefined, {dispatch: [], resolve_events: multiple_events})
         input.dispatchEvent(new Event(event))
         return set_val_promise
       }))
     })
 
     it('setting the value when there are no resolve events.', function() {
-      return set_val(input, undefined, [], [])
+      return set_val(input, undefined, {dispatch: [], resolve_events: []})
     })
   })
 
   it('dispatch events should not be dispatched before resolve listeners are set.', function() {
     const event = 'dispatch_&_hear'
-    return set_val(input, undefined, event, event)
+    return set_val(input, undefined, {dispatch: event, resolve_events: event})
   })
 
   it('should set the input attribue value to val.', async function() {
     const value = 'this is a value'
-    await set_val(input, value, [], [])
+    await set_val(input, value, {dispatch: [], resolve_events: []})
 
-    expect(input).to.have.value(value)
+    expect(input.value).to.equal(value)
   })
 
   it('should reject when timeout elapses.', async function() {
     const expected_events = ['elapses', 'another']
+    const timeout = 50
 
+    const start_time = Date.now()
     try {
-      await set_val(input, undefined, [], expected_events)
+      await set_val(input, undefined, {dispatch: [], resolve_events: expected_events, timeout: 50})
+
+      return Promise.reject(new Error('set_val should have rejected'))
     } catch(err) {
+      const end_time = Date.now()
+
       expect(err.message).to.equal(`Did not hear any of the resolve_events: ${expected_events.join(', ')}.`)
+      expect(end_time - start_time).to.be.above(timeout)
+      expect(end_time - start_time).to.be.below(timeout + 10)
     }
   })
 })
