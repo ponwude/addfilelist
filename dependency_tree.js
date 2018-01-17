@@ -43,13 +43,13 @@ node.prototype.in_bloodline = function(ancestor) {
 }
 
 node.prototype.is_ancestor_of = function(str) {
-  if (str instanceof node) str = str.str
+  if (str instanceof node) str = str.str //eslint-disable-line prefer-destructuring
   if (this.children.some(child => child.str === str)) return true
   return this.children.some(child => child.is_ancestor_of(str))
 }
 
 node.prototype.contains = function(str) {
-  if (str instanceof node) str = str.str
+  if (str instanceof node) str = str.str //eslint-disable-line prefer-destructuring
   return this.str === str || this.is_ancestor_of(str)
 }
 

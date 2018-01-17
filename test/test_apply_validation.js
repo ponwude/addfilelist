@@ -1,13 +1,8 @@
 /*global describe, it, beforeEach */
 
-/*eslint-disable no-global-assign, no-undef */
-Joi = require('joi-browser')
+Joi = require('joi-browser') //eslint-disable-line no-global-assign, no-undef
 
 const { JSDOM } = require('jsdom')
-window = new JSDOM('<!DOCTYPE html><body></body>').window
-document = window.window.document
-Event = window.Event
-/*eslint-enable no-global-assign, no-undef */
 
 const apply_validation = require('../apply_validation.js') // testing
 
@@ -15,8 +10,10 @@ const form_builder = require('../form_builder.js')
 
 const chai = require('chai')
 chai.use(require('chai-dom'))
+chai.use(require('sinon-chai'))
 chai.should()
-const {expect} = chai
+
+const sinon = require('sinon')
 
 const while_monitoring = require('./while_monitoring.js')
 const { set_val } = require('./support_test_functions.js')
@@ -26,170 +23,254 @@ describe('Test how the validation methods are applied.', function() {
   // quick links to form and input elements (set by beforeEach)
   const elements = {
     form: undefined,
+    input_0: undefined,
     input_1: undefined,
-    input_2: undefined,
+    input: undefined, // same as input_0
+    error_msg_0: undefined,
     error_msg_1: undefined,
-    error_msg_2: undefined,
+    error_msg: undefined, // same as error_msg_0
     submit: undefined,
   }
 
   const schema = [
     {
-      name: 'input_1',
-      validate: 'Joi.string().alphanum()',
+      name: 'input_0',
+      validate: Joi.string().alphanum(), //eslint-disable-line no-undef
     },
     {
-      name: 'input_2',
-      validate: 'Joi.number()',
+      name: 'input_1',
+      validate: Joi.number(), //eslint-disable-line no-undef
+    },
+    {
+      // will modify the value
+      name: 'input_3',
+      validate: Joi.string().lowercase(), //eslint-disable-line no-undef
     },
   ]
 
-  const input_1_vals = {good: 'a', bad: '@', error_msg: 'must only contain alpha-numeric characters'},
-        input_2_vals = {good: '1', bad: 'b', error_msg: 'must be a number'}
+  const input_0_vals = {good: 'a', bad: '@', error_msg: 'must only contain alpha-numeric characters'},
+        input_1_vals = {good: '1', bad: 'b', error_msg: 'must be a number'},
+        input_vals = input_0_vals
 
 
   beforeEach(function() {
-    /* Re-initialize the form before each test */
-    const form = form_builder(schema, {document})
+    /* Re-initialize the page before each test */
+
+    const dom = new JSDOM(
+      '<!DOCTYPE html><body></body>',
+      {
+        runScripts: 'dangerously',
+        resources: 'usable',
+      }
+    )
+    window = dom.window //eslint-disable-line no-global-assign, prefer-destructuring
+    document = window.window.document //eslint-disable-line no-global-assign, prefer-destructuring
+    Event = window.Event //eslint-disable-line no-global-assign, prefer-destructuring
+
+    set_val.Event = Event
+    while_monitoring.Event = Event
+
+    const form = form_builder(schema, { document })
+    document.body.appendChild(form)
     apply_validation(form, schema)
 
-    const [input_1, input_2, submit] = form.querySelectorAll('input')
-    const [error_msg_1, error_msg_2] = form.querySelectorAll('.input-error-msg')
+    const [input_0, input_1, input_3, submit] = form.querySelectorAll('input')
+    const [error_msg_0, error_msg_1] = form.querySelectorAll('.input-error-msg')
 
-    Object.assign(elements,
-      {form, input_1, input_2, submit, error_msg_1, error_msg_2})
+    Object.assign(elements, {
+      form,
+      input_0,
+      input_1,
+      input: input_0,
+      input_3,
+      submit,
+      error_msg_0,
+      error_msg_1,
+      error_msg: error_msg_0,
+      document,
+      window,
+    })
   })
 
 
   it('apply_validation should not add an error before input event.', function() {
-    const {error_msg_1, error_msg_2} = elements
+    const { error_msg_0, error_msg_1 } = elements
 
+    error_msg_0.should.have.text('')
     error_msg_1.should.have.text('')
-    error_msg_2.should.have.text('')
   })
 
-  it('No input error', async function() {
-    const {input_1, input_2, error_msg_1, error_msg_2} = elements
+  describe('correct happenings for validation', function() {
+    describe('valid value', function() {
+      it('validation is applied to all form inputs', async function() {
+        const { input_0, input_1 } = elements
+        await set_val(input_0, input_0_vals.good, {resolve_events: 'valid'})
+        await set_val(input_1, input_1_vals.good, {resolve_events: 'valid'})
+      })
 
-    expect( await set_val(input_1, input_1_vals.good, Event) )
-      .to.equal('valid')
-    error_msg_1.should.have.text('')
+      it('valid event dispatched', function() {
+        const { input } = elements
+        return set_val(input, input_vals.good, {resolve_events: 'valid'})
+      })
 
-    expect( await set_val(input_2, input_2_vals.good, Event) )
-      .to.equal('valid')
-    error_msg_2.should.have.text('')
-  })
+      it('error message removed', async function() {
+        const { input, error_msg_0 } = elements
+        error_msg_0.innerHTML = 'this should be removed on valid validation'
+        await set_val(input, input_vals.good)
 
-  it('Error for both inputs.', async function() {
-    const {input_1, input_2, error_msg_1, error_msg_2} = elements
+        error_msg_0.should.have.text('')
+      })
 
-    expect( await set_val(input_1, input_1_vals.bad, Event) )
-      .to.equal('invalid')
-    error_msg_1.should.have.text(input_1_vals.error_msg)
+      it('input-error class removed from input element', async function() {
+        const invaid_class = 'input-error'
+        const { input } = elements
+        input.classList.add(invaid_class)
+        await set_val(input, input_vals.good)
 
-    expect( await set_val(input_2, input_2_vals.bad, Event) )
-      .to.equal('invalid')
-    error_msg_2.should.have.text(input_2_vals.error_msg)
+        input.should.not.have.class(invaid_class)
+      })
+    })
+
+    describe('invalid value', function() {
+      it('validation is applied to all form inputs', async function() {
+        const { input_0, input_1 } = elements
+        await set_val(input_0, input_0_vals.bad, {resolve_events: 'invalid'})
+        await set_val(input_1, input_1_vals.bad, {resolve_events: 'invalid'})
+      })
+
+      it('invalid event dispatched', async function() {
+        const { input } = elements
+        return set_val(input, input_vals.bad, {resolve_events: 'invalid'})
+      })
+
+      it('error message added', async function() {
+        const { input, error_msg_0 } = elements
+        await set_val(input, input_vals.bad)
+
+        error_msg_0.should.have.text(input_vals.error_msg)
+      })
+
+      it('input-error class added to input element', async function() {
+        const { input } = elements
+        await set_val(input, input_vals.bad)
+
+        input.should.have.class('input-error')
+      })
+
+    })
   })
 
   it('No error when schema does not provide validation for one input', function() {
-    const schema = [
-      {
-        name: 'input_1',
-        validate: undefined,
-      },
-    ]
-
+    const schema = [{name: 'input_0', validate: undefined}]
     apply_validation(elements.form, schema)
   })
 
-  describe('single blur and then multiple change events should trigger validation.', function() {
-    describe('initial blur event', function() {
-      it('valid', function() {
-        const { input_1 } = elements
+  describe('event order', function() {
+    it('waits for initial "blur" event for first validation', function() {
+      const { input } = elements
+      const { good } = input_vals
+      return set_val(input, good, {dispatch: 'blur', resolve_events: 'valid'})
+    })
 
-        return set_val(input_1, input_1_vals.good, Event, {
+    it('after blur event, each "change" event (multiple) should trigger validation.', async function() {
+      const { input } = elements
+      await set_val(input, undefined, {dispatch: 'blur'})
+      const { good, bad } = input_vals
+
+      await set_val(input, good, {dispatch: 'change', resolve_events: 'valid'})
+      await set_val(input, bad , {dispatch: 'change', resolve_events: 'invalid'})
+      await set_val(input, good, {dispatch: 'change', resolve_events: 'valid'})
+      await set_val(input, bad , {dispatch: 'change', resolve_events: 'invalid'})
+    })
+
+    describe('form submit', function() {
+      describe('emits a validation event on the form element', function() {
+        it('valid', function() {
+          const { form, input_0, input_1 } = elements
+          input_0.value = input_0_vals.good
+          input_1.value = input_1_vals.good
+
+          return while_monitoring(form).expect('valid').upon_event('submit')
+        })
+
+        it('invalid', function() {
+          const { form, input_0, input_1 } = elements
+          input_0.value = input_0_vals.bad
+          input_1.value = input_1_vals.bad
+
+          return while_monitoring(form).expect('invalid').upon_event('submit')
+        })
+      })
+
+      it('does not use default form submit if javascript enabled', function() {
+        /*
+        JSDOM
+        Form submission is not currently implemented, so it is not possible.
+        https://github.com/tmpvar/jsdom/issues/123
+
+        See affected line
+        */
+        /*eslint-disable no-console, no-unused-vars */
+        const { form, input, document, window } = elements
+        input.value = input_vals.bad
+
+        const preventDefault = sinon.spy(),
+              stopPropagation = sinon.spy()
+
+        const submit_event = new Event('submit')
+        submit_event.preventDefault = preventDefault
+        submit_event.stopPropagation = stopPropagation
+
+        form.dispatchEvent(submit_event)
+
+        preventDefault.should.have.been.calledOnce
+        stopPropagation.should.have.been.calledOnce
+        document.body.should.contain(form) // affected line
+      })
+
+      it('inputs are validated', function() {
+        const { form, input_0, input_1 } = elements
+
+        input_0.value = input_0_vals.good
+        input_1.value = input_1_vals.bad
+
+        const validations = [
+          while_monitoring(input_0).expect('valid').upon(),
+          while_monitoring(input_1).expect('invalid').upon(),
+        ]
+
+        form.dispatchEvent(new Event('submit'))
+
+        return Promise.all(validations)
+      })
+
+      it('validate sequence restarted', async function() {
+        const { form, input_0 } = elements
+
+        input_0.value = input_0_vals.bad
+        try {
+          await while_monitoring(input_0)
+            .expect('invalid')
+            .upon(() => form.dispatchEvent(new Event('submit')))
+        } catch(err) {throw err}
+
+        input_0.value = input_0_vals.good
+
+        return set_val(input_0, input_0_vals.good, {
           dispatch: 'blur',
           resolve_events: 'valid',
         })
       })
-
-      it('invalid', function() {
-        const { input_1 } = elements
-
-        return set_val(input_1, input_1_vals.bad, Event, {
-          dispatch: 'blur',
-          resolve_events: 'invalid',
-        })
-      })
-    })
-
-    describe('multiple change events', function() {
-      beforeEach(async function() {
-        const { input_1 } = elements
-
-        await set_val(input_1, input_1_vals.good, Event, {dispatch: 'blur'})
-        input_1.value = ''
-      })
-
-      it('valid change', async function() {
-        const { input_1 } = elements
-
-        for (let i = 0; i < 2; ++i) {
-          await set_val(input_1, input_1_vals.good, Event, {
-            dispatch: 'change',
-            resolve_events: 'valid',
-          })
-        }
-      })
-
-      it('valid change', async function() {
-        const { input_1 } = elements
-
-        for (let i = 0; i < 2; ++i) {
-          await set_val(input_1, input_1_vals.bad, Event, {
-            dispatch: 'change',
-            resolve_events: 'invalid',
-          })
-        }
-      })
     })
   })
 
-  describe('form submit', function() {
-    it('inputs are validated', function() {
-      const { form, input_1, input_2 } = elements
+  describe('validation returns a modified value', function() {
+    it('input assumes modified value', async function() {
+      const { input_3 } = elements
 
-      input_1.value = input_1_vals.good
-      input_2.value = input_2_vals.bad
+      await set_val(input_3, 'Hi', {resolve_events: 'valid'})
 
-      const validations = [
-        while_monitoring(input_1).expect('valid').upon(),
-        while_monitoring(input_2).expect('invalid').upon(),
-      ]
-
-      form.dispatchEvent(new Event('submit'))
-
-      return Promise.all(validations)
-    })
-
-    it('validate sequence restarted after form submit', async function() {
-      const { form, input_1 } = elements
-
-      input_1.value = input_1_vals.bad
-      try {
-        await while_monitoring(input_1)
-          .expect('invalid')
-          .upon(() => form.dispatchEvent(new Event('submit')))
-      } catch(err) {throw err}
-
-      input_1.value = input_1_vals.good
-
-      return set_val(input_1, input_1_vals.good, Event, {
-        dispatch: 'blur',
-        resolve_events: 'valid',
-      })
+      input_3.should.have.value('hi')
     })
   })
-
 })

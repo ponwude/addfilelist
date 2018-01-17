@@ -5,7 +5,7 @@ const { expect } = chai
 chai.should()
 
 const { JSDOM } = require('jsdom')
-const window = new JSDOM('<!DOCTYPE html><body></body>').window
+const { window } = new JSDOM('<!DOCTYPE html><body></body>')
 const { window: document, Event } = window.window
 
 const while_monitoring = require('./while_monitoring.js')
@@ -79,7 +79,7 @@ describe('while_monitoring', function() {
         })
 
         it('multiple events with one listened for event heard the same number of times as the length of the number of events being listened for.', async function() {
-          const event_type = multiple_event_types[0]
+          const [event_type] = multiple_event_types
           const unheard_events = multiple_event_types.copyWithout(event_type).join(', ')
 
           try {

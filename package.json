@@ -44,6 +44,8 @@
     "mocha": "^4.0.1",
     "mocha-eslint": "^4.1.0",
     "moment": "^2.19.3",
+    "sinon": "^4.1.6",
+    "sinon-chai": "^2.14.0",
     "supertest": "^3.0.0",
     "then-fs": "^2.0.0"
   },

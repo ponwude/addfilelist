@@ -1,10 +1,8 @@
 /*global describe it */
 
-/*eslint-disable no-global-assign */
 const { JSDOM } = require('jsdom')
-window = new JSDOM('<!DOCTYPE html><body></body>').window
+window = new JSDOM('<!DOCTYPE html><body></body>').window //eslint-disable-line no-global-assign, prefer-destructuring
 const { document } = window.window
-/*eslint-enable no-global-assign */
 
 
 // testing
@@ -125,7 +123,7 @@ describe('Create a form.', function() {
       },
     ]
 
-    const input_div = form_builder(schema).children[0]
+    const input_div = form_builder(schema).children[0] //eslint-disable-line prefer-destructuring
     expect(input_div).to.have.length(3)
     expect(input_div.children[1]).to.have.attr('name', schema[0].name)
   })

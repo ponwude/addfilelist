@@ -32,6 +32,9 @@ const template_needs = Object.freeze({
 
 async function create_form_routes(form_template, form_schema_path) {
   // check form_template
+  if (typeof form_template !== 'string')
+    throw new Error('form_template must be a html string')
+
   const needs_indicies = {}
   for (const needs in template_needs) {
     if (template_needs.hasOwnProperty(needs)) {

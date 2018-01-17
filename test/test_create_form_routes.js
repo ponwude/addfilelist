@@ -1,11 +1,9 @@
-/*global describe, it, __dirname, before, beforeEach, after, afterEach */
+/*global describe, it, __dirname, before, beforeEach, afterEach */
 
 const express = require('express')
 const supertest = require('supertest')
 
 const path = require('path')
-const http = require('http')
-const fs = require('then-fs')
 
 const combineErrors = require('combine-errors')
 
@@ -28,23 +26,24 @@ const form_schemas = require(form_schema_path)
 
 describe('Ensure html contains required code', function() {
   it('form_html', function() {
-    const template = `
-      <script>var form_type = {{form_type}}</script>
-      <script src="/apply_validation-bundle.js"></script>
-      `
+    const template = '<script>var form_type = {{form_type}}</script>'
 
     return expect(create_form_routes(template))
       .to.be.rejectedWith('Form template missing: {{form_html}}')
   })
 
   it('form_type', function() {
-    const template = `
-      <body>{{form_html}}</body>
-      <script src="/apply_validation-bundle.js"></script>
-      `
+    const template = '<body>{{form_html}}</body>'
 
     return expect(create_form_routes(template))
       .to.be.rejectedWith('Form template missing: <script>var form_type = {{form_type}}</script>')
+  })
+})
+
+describe('form_template', function() {
+  it('is undefined', function() {
+    return expect(create_form_routes(undefined, form_schema_path))
+      .to.be.rejectedWith('form_template must be a html string')
   })
 })
 
@@ -52,7 +51,6 @@ describe('form_schema_path', function() {
   const template = `
     <body>{{form_html}}</body>
     <script>var form_type = {{form_type}}</script>
-    <script src="/another_1/%/apply_validation-bundle.js"></script>
     `
 
   it('bad path', function() {
@@ -114,44 +112,6 @@ describe('run app', async function() {
 
   describe('Client side should display input validation error messages.', function() {
 
-    const hostname = '127.0.0.1'
-    const port = 3000
-    const local_url = `http://${hostname}:${port}`
-
-    const file_paths = {
-      '/apply_validation-bundle.js': path.join(__dirname, '../apply_validation-bundle.js'),
-    }
-
-    let server
-    before(done => {
-      server = http.createServer(async (req, res) => {
-        const system_file_path = file_paths[req.url]
-
-        if (system_file_path === undefined) {
-          res.statusCode = 400
-          res.end(`File ${res.url} not found.`)
-        }
-        else {
-          try {
-            fs.access(system_file_path)
-            res.statusCode = 200
-            res.setHeader('Content-Type', 'text/javascript')
-            const file_content = await fs.readFile(system_file_path)
-            res.end(file_content)
-          }
-          catch (err) {
-            res.statusCode = 500
-            res.setHeader('Content-Type', 'text/text')
-            res.end(String(err))
-          }
-        }
-      })
-
-      server.setTimeout(50)
-      server.listen(port, hostname, undefined, done)
-    })
-    after(done => {server.close(done)})
-
     let virtualConsole, check_vc_error
     beforeEach(() => {
       virtualConsole = new jsdom.VirtualConsole()
@@ -196,9 +156,7 @@ describe('run app', async function() {
       const dom = new JSDOM(
         page_html,
         {
-          url: local_url,
           runScripts: 'dangerously',
-          resources: 'usable',
           virtualConsole,
         }
       )
@@ -234,10 +192,8 @@ describe('run app', async function() {
     })
 
     it('validate with repeating blur -> change (repeat) -> submit cycle', async function() {
-      expect(server.listening).to.be.true
-
       const url = '/form0'
-      const { good_values, bad_values } = form_schemas[url][0]
+      const { good_values, bad_values } = form_schemas[url][0] //eslint-disable-line prefer-destructuring
 
       const page_html = (await request.get(url)).text
 

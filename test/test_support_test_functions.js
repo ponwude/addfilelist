@@ -1,7 +1,7 @@
 /*global describe, it, beforeEach */
 
 const { JSDOM } = require('jsdom')
-const window = new JSDOM('<!DOCTYPE html><body></body>').window
+const { window } = new JSDOM('<!DOCTYPE html><body></body>')
 const { document, Event } = window.window
 
 const chai = require('chai')
