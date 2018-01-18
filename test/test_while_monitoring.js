@@ -134,14 +134,12 @@ describe('while_monitoring', function() {
               resolve()
             })
 
-            try {
-              await while_monitoring(document)
-                .expect(event_type)
-                .upon(() => {
-                  document.dispatchEvent(new Event(event_type))
-                  return to_resolve
-                })
-            } catch (err) {throw err}
+            await while_monitoring(document)
+              .expect(event_type)
+              .upon(() => {
+                document.dispatchEvent(new Event(event_type))
+                return to_resolve
+              })
 
             expect(is_resolved).to.be.true
           })
@@ -155,16 +153,14 @@ describe('while_monitoring', function() {
             //   async function() {
             //   let is_resolved = false
 
-            //   try {
-            //     await while_monitoring(document)
-            //       .expect(event_type)
-            //       .upon(new Promise(resolve => {
-            //         console.log('dispatchEvent')
-            //         document.dispatchEvent(new Event(event_type))
-            //         is_resolved = true
-            //         resolve()
-            //       }))
-            //   } catch (err) {throw err}
+          //     await while_monitoring(document)
+          //       .expect(event_type)
+          //       .upon(new Promise(resolve => {
+          //         console.log('dispatchEvent')
+          //         document.dispatchEvent(new Event(event_type))
+          //         is_resolved = true
+          //         resolve()
+          //       }))
 
             //   expect(is_resolved).to.be.true
             // }
@@ -189,15 +185,13 @@ describe('while_monitoring', function() {
           it('resolves.', async function() {
             let is_resolved = false
 
-            try {
-              await while_monitoring(document)
-                .expect(event_type)
-                .upon(async function() {
-                  document.dispatchEvent(new Event(event_type))
-                  await detach_thread(200)
-                  is_resolved = true
-                })
-            } catch (err) {throw err}
+            await while_monitoring(document)
+              .expect(event_type)
+              .upon(async function() {
+                document.dispatchEvent(new Event(event_type))
+                await detach_thread(200)
+                is_resolved = true
+              })
 
             expect(is_resolved).to.be.true
           })
@@ -223,15 +217,13 @@ describe('while_monitoring', function() {
           it('returns an promise that resolves.', async function() {
             let is_resolved = false
 
-            try {
-              await while_monitoring(document)
-                .expect(event_type)
-                .upon(async function() {
-                  document.dispatchEvent(new Event(event_type))
-                  await detach_thread(100)
-                  return long_promise(() => {is_resolved = true}, 100)
-                })
-            } catch (err) {throw err}
+            await while_monitoring(document)
+              .expect(event_type)
+              .upon(async function() {
+                document.dispatchEvent(new Event(event_type))
+                await detach_thread(100)
+                return long_promise(() => {is_resolved = true}, 100)
+              })
 
             expect(is_resolved).to.be.true
           })
@@ -298,9 +290,7 @@ describe('while_monitoring', function() {
         document.dispatchEvent(new Event('one'))
         document.dispatchEvent(new Event('two'))
 
-        try {
-          await wm
-        } catch (err) {throw err}
+        await wm
 
         const end_time = Date.now()
 
@@ -502,11 +492,9 @@ describe('while_monitoring', function() {
               resolve()
             })
 
-            try {
-              await while_monitoring(document)
-                .do_not_expect(event_type)
-                .upon(() => to_resolve)
-            } catch (err) {throw err}
+            await while_monitoring(document)
+              .do_not_expect(event_type)
+              .upon(() => to_resolve)
 
             expect(is_resolved).to.be.true
           })
@@ -520,16 +508,14 @@ describe('while_monitoring', function() {
             //   async function() {
             //   let is_resolved = false
 
-            //   try {
-            //     await while_monitoring(document)
-            //       .do_not_expect(event_type)
-            //       .upon(new Promise(resolve => {
-            //         console.log('dispatchEvent')
-            //         document.dispatchEvent(new Event(event_type))
-            //         is_resolved = true
-            //         resolve()
-            //       }))
-            //   } catch (err) {throw err}
+          //     await while_monitoring(document)
+          //       .do_not_expect(event_type)
+          //       .upon(new Promise(resolve => {
+          //         console.log('dispatchEvent')
+          //         document.dispatchEvent(new Event(event_type))
+          //         is_resolved = true
+          //         resolve()
+          //       }))
 
             //   expect(is_resolved).to.be.true
             // }
@@ -554,14 +540,12 @@ describe('while_monitoring', function() {
           it('resolves.', async function() {
             let is_resolved = false
 
-            try {
-              await while_monitoring(document)
-                .do_not_expect(event_type)
-                .upon(async function() {
-                  await detach_thread(100)
-                  is_resolved = true
-                })
-            } catch (err) {throw err}
+            await while_monitoring(document)
+              .do_not_expect(event_type)
+              .upon(async function() {
+                await detach_thread(100)
+                is_resolved = true
+              })
 
             expect(is_resolved).to.be.true
           })
@@ -586,14 +570,12 @@ describe('while_monitoring', function() {
           it('returns an promise that resolves.', async function() {
             let is_resolved = false
 
-            try {
-              await while_monitoring(document)
-                .do_not_expect(event_type)
-                .upon(async function() {
-                  await detach_thread(100)
-                  return long_promise(() => {is_resolved = true}, 100)
-                })
-            } catch (err) {throw err}
+            await while_monitoring(document)
+              .do_not_expect(event_type)
+              .upon(async function() {
+                await detach_thread(100)
+                return long_promise(() => {is_resolved = true}, 100)
+              })
 
             expect(is_resolved).to.be.true
           })
@@ -994,9 +976,7 @@ describe('long_promise', function() {
     const start_time = Date.now()
 
     let after_func_called = false
-    try {
-      await long_promise(() => after_func_called = true, timeout)
-    } catch(err) {throw err}
+    await long_promise(() => after_func_called = true, timeout)
 
     const total_time = Date.now() - start_time
 

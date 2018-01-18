@@ -58,22 +58,14 @@ async function setup(config, queue_time=300) {
         `echo "eslint passed: ${eslint_files_str}"`,
       ].join(' && ')
 
-      commands.push(async () => {
-        try {
-          return (await exec(exe_command)).stdout
-        } catch(err) {throw err}
-      })
+      commands.push(async () => (await exec(exe_command)).stdout )
 
       if (build !== undefined) commands.push(build)
 
       if (test_file !== undefined) {
         const exe_command = `npx mocha ${test_file}`
 
-        commands.push(async () => {
-          try {
-            return (await exec(exe_command)).stdout
-          } catch(err) {throw err}
-        })
+        commands.push(async () => (await exec(exe_command)).stdout )
       }
 
       Object.freeze(commands)

@@ -24,7 +24,17 @@ module.exports = function(form, schema) {
         try {
           const int_value = input.value
           const val_value = await validate_promise.validate(int_value)
-          if (int_value !== val_value) input.value = val_value
+
+          if (int_value !== val_value) {
+            const { selectionStart, selectionEnd } = input
+
+            input.value = val_value
+
+            if (selectionStart !== null) {
+              input.selectionStart = selectionStart
+              input.selectionEnd = selectionEnd
+            }
+          }
 
           input.classList.remove('input-error')
           error_text.innerHTML = ''
@@ -43,7 +53,7 @@ module.exports = function(form, schema) {
 
       Sequence(input)
         .once('blur', val_func)
-        .repeat('change', val_func)
+        .repeat('keyup', val_func)
         .whenever('submit', form).restart()
 
       return val_func

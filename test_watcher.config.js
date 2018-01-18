@@ -10,6 +10,7 @@ module.exports = {
   create_form_routes: {
     test_file: 'test/test_create_form_routes.js',
     to_test: 'create_form_routes.js',
+    extra_dependancies: ['apply_validation.js'],
   },
   form_builder: {
     test_file: 'test/test_form_builder.js',

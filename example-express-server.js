@@ -15,9 +15,12 @@ const template =
 <script>var form_type = {{form_type}}</script>
 `
 
+process.on('unhandledRejection', (reason, p) => {
+  console.log('Unhandled Rejection at:', p, 'reason:', reason)
+  // application specific logging, throwing an error, or other logic here
+})
 
-
-Promise.resolve().then(async () => {
+;(async () => {
   const onError = function(error) {
     if (error.syscall !== 'listen') {
       throw error
@@ -43,28 +46,25 @@ Promise.resolve().then(async () => {
   }
 
   const port = '3000'
-  try {
-    const app = express()
-    app.use((req, res, next) => {
-      console.log('hi', Date.now())
-      next()
-    })
-    app.use(await create_form_routes(template, path.resolve('./test/form_schema_example.js')))
-    app.set('port', port)
+  const app = express()
+  app.use((req, res, next) => {
+    console.log('hi', Date.now())
+    next()
+  })
+  app.use(await create_form_routes(template, path.resolve('./test/form_schema_example.js')))
+  app.set('port', port)
 
-    const server = http.createServer(app)
-    server.on('error', onError)
-    server.on('listening', function() {
-      const addr = server.address()
-      const bind = typeof addr === 'string'
-        ? 'pipe ' + addr
-        : 'port ' + addr.port
-      debug('Listening on ' + bind)
-    })
+  const server = http.createServer(app)
+  server.on('error', onError)
+  server.on('listening', function() {
+    const addr = server.address()
+    const bind = typeof addr === 'string'
+      ? 'pipe ' + addr
+      : 'port ' + addr.port
+    debug('Listening on ' + bind)
+  })
 
-    server.listen(port)
-    console.log(`server listening on port: ${port}`)
-  } catch(err) {throw err}
+  server.listen(port)
+  console.log(`server listening on port: ${port}`)
 
-}).catch(console.error.bind(console))
-
+})()

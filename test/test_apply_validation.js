@@ -44,7 +44,7 @@ describe('Test how the validation methods are applied.', function() {
     {
       // will modify the value
       name: 'input_3',
-      validate: Joi.string().lowercase(), //eslint-disable-line no-undef
+      validate: Joi.string().lowercase().allow(''), //eslint-disable-line no-undef
     },
   ]
 
@@ -166,21 +166,26 @@ describe('Test how the validation methods are applied.', function() {
   })
 
   describe('event order', function() {
-    it('waits for initial "blur" event for first validation', function() {
+    it('waits for initial "blur" event for first validation', async function() {
       const { input } = elements
       const { good } = input_vals
+
+      await while_monitoring(input)
+        .do_not_expect(['valid', 'invalid'])
+        .upon(() => input.dispatchEvent(new Event('keyup')))
+
       return set_val(input, good, {dispatch: 'blur', resolve_events: 'valid'})
     })
 
-    it('after blur event, each "change" event (multiple) should trigger validation.', async function() {
+    it('after blur event, each "keyup" event (multiple) should trigger validation.', async function() {
       const { input } = elements
       await set_val(input, undefined, {dispatch: 'blur'})
       const { good, bad } = input_vals
 
-      await set_val(input, good, {dispatch: 'change', resolve_events: 'valid'})
-      await set_val(input, bad , {dispatch: 'change', resolve_events: 'invalid'})
-      await set_val(input, good, {dispatch: 'change', resolve_events: 'valid'})
-      await set_val(input, bad , {dispatch: 'change', resolve_events: 'invalid'})
+      await set_val(input, good, {dispatch: 'keyup', resolve_events: 'valid'})
+      await set_val(input, bad , {dispatch: 'keyup', resolve_events: 'invalid'})
+      await set_val(input, good, {dispatch: 'keyup', resolve_events: 'valid'})
+      await set_val(input, bad , {dispatch: 'keyup', resolve_events: 'invalid'})
     })
 
     describe('form submit', function() {
@@ -245,21 +250,20 @@ describe('Test how the validation methods are applied.', function() {
       })
 
       it('validate sequence restarted', async function() {
-        const { form, input_0 } = elements
+        const { form, input } = elements
+        const { good, bad } = input_vals
 
-        input_0.value = input_0_vals.bad
-        try {
-          await while_monitoring(input_0)
-            .expect('invalid')
-            .upon(() => form.dispatchEvent(new Event('submit')))
-        } catch(err) {throw err}
+        await set_val(input, good, {dispatch: 'blur', resolve_events: 'valid'})
+        await set_val(input, bad, {dispatch: 'keyup', resolve_events: 'invalid'})
+        await while_monitoring(input)
+          .expect('invalid')
+          .upon(() => form.dispatchEvent(new Event('submit')))
 
-        input_0.value = input_0_vals.good
-
-        return set_val(input_0, input_0_vals.good, {
-          dispatch: 'blur',
-          resolve_events: 'valid',
-        })
+        await while_monitoring(input)
+          .do_not_expect(['valid', 'invalid'])
+          .upon(() => {input.dispatchEvent(new Event('keyup'))})
+        await set_val(input, bad, {dispatch: 'blur', resolve_events: 'invalid'})
+        await set_val(input, good, {dispatch: 'keyup', resolve_events: 'valid'})
       })
     })
   })
@@ -271,6 +275,22 @@ describe('Test how the validation methods are applied.', function() {
       await set_val(input_3, 'Hi', {resolve_events: 'valid'})
 
       input_3.should.have.value('hi')
+    })
+
+    it('cursor is put back in origional place', async function() {
+      const cursor_position = 2
+      const value = 'Hi there Chum'
+      const { input_3 } = elements
+      input_3.value = value
+      input_3.selectionStart = input_3.selectionEnd = cursor_position
+
+      await while_monitoring(input_3)
+        .expect('valid')
+        .upon_event('blur')
+
+      input_3.should.have.value(value.toLowerCase())
+      input_3.selectionStart.should.equal(cursor_position)
+      input_3.selectionEnd.should.equal(cursor_position)
     })
   })
 })

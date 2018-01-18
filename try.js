@@ -1,1 +1,0 @@
-module.exports = function() {console.log('try.js function')}

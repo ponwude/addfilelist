@@ -37,7 +37,7 @@ function set_val(
   input, // expected to be an input element
   val, // value to set the input attribute value to
   {
-    dispatch=['blur', 'change'], // dispatch events after event is set. String, Array of Strings, empty Array
+    dispatch=['blur', 'keyup'], // dispatch events after event is set. String, Array of Strings, empty Array
     resolve_events=['valid', 'invalid'], // wait for events to be dispatched before promise is resolved. String, Array of Strings, empty Array
     timeout=100,
   }={}

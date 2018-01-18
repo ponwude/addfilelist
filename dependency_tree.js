@@ -98,7 +98,7 @@ async function dependency_tree(entry_file, options={}) {
   const entry_file_full = path.resolve(entry_file),
         entry_dir = path.dirname(entry_file_full)
 
-  try { await fs.access(entry_file_full) } catch(err) {throw err}
+  await fs.access(entry_file_full)
 
   const [file_node, root_node] = (function() {
     if (parent === undefined) {
@@ -116,20 +116,18 @@ async function dependency_tree(entry_file, options={}) {
 
   const re = /\brequire\(\w*['"`](.*\.js)['"`]\w*\)/g
 
-  try {
-    const file_str = await fs.readFile(entry_file_full)
+  const file_str = await fs.readFile(entry_file_full)
 
-    let dependency = undefined
-    while ((dependency = re.exec(file_str)) !== null) {
-      const dep_path = path.join(entry_dir, dependency[1]) // file path
-      await dependency_tree(dep_path, {
-        root_node,
-        parent: file_node,
-        max_depth,
-        depth: depth + 1,
-      })
-    }
-  } catch(err) {throw err}
+  let dependency = undefined
+  while ((dependency = re.exec(file_str)) !== null) {
+    const dep_path = path.join(entry_dir, dependency[1]) // file path
+    await dependency_tree(dep_path, {
+      root_node,
+      parent: file_node,
+      max_depth,
+      depth: depth + 1,
+    })
+  }
 
   return file_node
 }

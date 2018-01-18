@@ -294,33 +294,29 @@ describe('dependency_tree', function() {
   it('pets.js', async function() {
     const entry = path.join(__dirname, 'dependency_tree_test_files/pets.js')
 
-    try {
-      const dt = await dependency_tree(entry)
+    const dt = await dependency_tree(entry)
 
-      const entry_dir = path.dirname(path.resolve(entry))
-      expect(dt.str).to.equal(path.resolve(entry))
+    const entry_dir = path.dirname(path.resolve(entry))
+    expect(dt.str).to.equal(path.resolve(entry))
 
-      expect(dt.is_ancestor_of(path.join(entry_dir, 'cat.js'))).to.be.true
-      expect(dt.is_ancestor_of(path.join(entry_dir, 'level_2', 'dog.js'))).to.be.true
+    expect(dt.is_ancestor_of(path.join(entry_dir, 'cat.js'))).to.be.true
+    expect(dt.is_ancestor_of(path.join(entry_dir, 'level_2', 'dog.js'))).to.be.true
 
-      expect(dt.is_ancestor_of(path.join(entry_dir, 'level_2', 'name2.js'))).to.be.false
-    } catch(err) {throw err}
+    expect(dt.is_ancestor_of(path.join(entry_dir, 'level_2', 'name2.js'))).to.be.false
   })
 
   it('name.js', async function() {
     const entry = path.join(__dirname, 'dependency_tree_test_files/name.js')
 
-    try {
-      const dt = await dependency_tree(entry)
+    const dt = await dependency_tree(entry)
 
-      const entry_dir = path.dirname(path.resolve(entry))
-      expect(dt.str).to.equal(path.resolve(entry))
+    const entry_dir = path.dirname(path.resolve(entry))
+    expect(dt.str).to.equal(path.resolve(entry))
 
-      expect(dt.is_ancestor_of(path.join(entry_dir, 'level_2', 'name2.js'))).to.be.true
-      expect(dt.is_ancestor_of(path.join(entry_dir, 'name3.js'))).to.be.true
+    expect(dt.is_ancestor_of(path.join(entry_dir, 'level_2', 'name2.js'))).to.be.true
+    expect(dt.is_ancestor_of(path.join(entry_dir, 'name3.js'))).to.be.true
 
-      expect(dt.is_ancestor_of(path.join(entry_dir, 'level_2', 'dog.js'))).to.be.false
-    } catch(err) {throw err}
+    expect(dt.is_ancestor_of(path.join(entry_dir, 'level_2', 'dog.js'))).to.be.false
   })
 
   it('max_depth exceded', async function() {
@@ -362,15 +358,13 @@ describe('dependency_tree', function() {
       const entry = path.join(__dirname, 'dependency_tree_test_files/double_require.js'),
             second = path.join(__dirname, 'dependency_tree_test_files/double_require1.js')
 
-      try {
-        const tree = await dependency_tree(entry)
+      const tree = await dependency_tree(entry)
 
-        expect(tree.str).to.equal(path.resolve(entry))
+      expect(tree.str).to.equal(path.resolve(entry))
 
-        tree.children.forEach(c => {
-          expect(c.str).to.equal(second)
-        })
-      } catch(err) {throw err}
+      tree.children.forEach(c => {
+        expect(c.str).to.equal(second)
+      })
     })
   })
 

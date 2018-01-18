@@ -17,11 +17,7 @@ chai.use(require('chai-diff'))
 chai.use(require('chai-as-promised'))
 const { expect } = chai
 
-const while_monitoring = require('./while_monitoring.js')
-const { set_val } = require('./support_test_functions.js')
-
 const form_schema_path = path.join(__dirname, './form_schema_example.js')
-const form_schemas = require(form_schema_path)
 
 
 describe('Ensure html contains required code', function() {
@@ -163,15 +159,13 @@ describe('run app', async function() {
       const { window } = dom
 
       // wait for page load
-      try {
-        await new Promise((resolve, reject) => {
-          if (window.loaded_for_test === true) resolve()
-          else {
-            window.run_if_loaded_for_test = resolve
-            setTimeout(() => reject(new Error('Page load timed out')), 1000)
-          }
-        })
-      } catch(err) {throw err}
+      await new Promise((resolve, reject) => {
+        if (window.loaded_for_test === true) resolve()
+        else {
+          window.run_if_loaded_for_test = resolve
+          setTimeout(() => reject(new Error('Page load timed out')), 1000)
+        }
+      })
 
       check_vc_error()
 
@@ -180,50 +174,11 @@ describe('run app', async function() {
 
     it('Page should load without error.', async function() {
       const url = '/form1'
-
       const page_html = (await request.get(url)).text
+      const { window } = await load_page(page_html)
 
-      try {
-        const { window } = await load_page(page_html)
-
-        expect(window.form_type).to.equal(url)
-        expect(window.apply_validation).to.be.a('function')
-      } catch(err) {throw err}
-    })
-
-    it('validate with repeating blur -> change (repeat) -> submit cycle', async function() {
-      const url = '/form0'
-      const { good_values, bad_values } = form_schemas[url][0] //eslint-disable-line prefer-destructuring
-
-      const page_html = (await request.get(url)).text
-
-      const { document, Event } = await load_page(page_html)
-      set_val.Event = Event
-
-      const input = document.body.querySelector('input'),
-            form = document.body.querySelector('form')
-
-      try {
-        // do not check on change until a blur event happens
-        await while_monitoring(input)
-          .do_not_expect(['valid', 'invalid'])
-          .upon(() => input.dispatchEvent(new Event('change')))
-
-        await set_val(input, good_values[0], {dispatch: 'blur', resolve_events: 'valid'})
-        await set_val(input, good_values[1], {dispatch: 'change', resolve_events: 'valid'})
-        await set_val(input, good_values[1], {dispatch: 'change', resolve_events: 'valid'})
-        await while_monitoring(input).expect('valid').upon(() => {
-          form.dispatchEvent(new Event('submit'))
-        })
-
-        await set_val(input, bad_values[0], {dispatch: 'blur', resolve_events: 'invalid'})
-        await set_val(input, bad_values[1], {dispatch: 'change', resolve_events: 'invalid'})
-        await set_val(input, bad_values[1], {dispatch: 'change', resolve_events: 'invalid'})
-        await while_monitoring(input).expect('invalid').upon(() => {
-          form.dispatchEvent(new Event('submit'))
-        })
-
-      } catch(err) {throw err}
+      expect(window.form_type).to.equal(url)
+      expect(window.apply_validation).to.be.a('function')
     })
   })
 })

@@ -55,47 +55,43 @@ async function create_form_routes(form_template, form_schema_path) {
     throw new Error(`Cannot find form_schema_path file '${form_schema_path}' from '${__dirname}'`)
   }
 
-  try {
-    // build html
-    const entry = apply_validation_entry
-      .replace('{{form_schema_path}}', form_schema_path)
+  // build html
+  const entry = apply_validation_entry
+    .replace('{{form_schema_path}}', form_schema_path)
 
-    const bundle = (await new Promise((resolve, reject) => {
-      try {
-        browserify(str(entry), {basedir: __dirname})
-          .bundle()
-          .on('error', reject)
-          .pipe(concat())
-          .then(resolve)
-      } catch(err) {reject(err)}
-    })).toString('utf8')
+  const bundle = (await new Promise((resolve, reject) => {
+    try {
+      browserify(str(entry), {basedir: __dirname})
+        .bundle()
+        .on('error', reject)
+        .pipe(concat())
+        .then(resolve)
+    } catch(err) {reject(err)}
+  })).toString('utf8')
 
 
-    // create router
-    const router = express.Router()
+  // create router
+  const router = express.Router()
 
-    const schemas = require(form_schema_path)
+  const schemas = require(form_schema_path)
 
-    for (const route in schemas) {
-      if (schemas.hasOwnProperty(route)) {
-        const page_html = form_template
-          .replace('{{form_html}}', form_builder(schemas[route], {document}).outerHTML)
-          .replace('{{form_type}}', JSON.stringify(route))
-          + `<script>${bundle}</script>\n`
+  for (const route in schemas) {
+    if (schemas.hasOwnProperty(route)) {
+      const page_html = form_template
+        .replace('{{form_html}}', form_builder(schemas[route], {document}).outerHTML)
+        .replace('{{form_type}}', JSON.stringify(route))
+        + `<script>${bundle}</script>\n`
 
-        router.get(route, (req, res) => {
-          res.set('Content-Type', 'text/html')
-          res.send(page_html)
-        })
+      router.get(route, (req, res) => {
+        res.set('Content-Type', 'text/html')
+        res.send(page_html)
+      })
 
-        router.post // define router post form handler here
-      }
+      router.post // define router post form handler here
     }
+  }
 
-    return router
-
-  } catch(err) {throw err}
-
+  return router
 }
 
 

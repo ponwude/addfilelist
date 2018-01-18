@@ -27,11 +27,9 @@ describe('set_val', function() {
       return while_monitoring(input)
         .expect(single_event)
         .upon(async () => {
-          try {
-            const set_val_promise = set_val(input, undefined, {dispatch: single_event})
-            input.dispatchEvent(new Event('valid'))
-            return set_val_promise
-          } catch(err) {throw err}
+          const set_val_promise = set_val(input, undefined, {dispatch: single_event})
+          input.dispatchEvent(new Event('valid'))
+          return set_val_promise
         })
     })
 
