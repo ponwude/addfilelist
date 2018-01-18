@@ -30,8 +30,11 @@ const template_needs = Object.freeze({
 })
 
 
-async function create_form_routes(form_template, form_schema_path) {
-  // check form_template
+async function create_form_routes(form_template_path, form_schema_path) {
+  // checks
+  await Promise.all([form_template_path, form_schema_path].map(p => fs.access(p)))
+
+  const form_template = await fs.readFile(form_template_path, 'utf8')
   if (typeof form_template !== 'string')
     throw new Error('form_template must be a html string')
 
@@ -45,14 +48,6 @@ async function create_form_routes(form_template, form_schema_path) {
 
       needs_indicies[needs] = index
     }
-  }
-
-  // form_schema_path exists
-  try {
-    await fs.access(form_schema_path)
-  }
-  catch(err) {
-    throw new Error(`Cannot find form_schema_path file '${form_schema_path}' from '${__dirname}'`)
   }
 
   // build html

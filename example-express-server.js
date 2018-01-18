@@ -10,15 +10,11 @@ const create_form_routes = require('./create_form_routes.js')
 const debug = require('debug')('example-server:server')
 
 
-const template =
-`<body>{{form_html}}</body>
-<script>var form_type = {{form_type}}</script>
-`
-
 process.on('unhandledRejection', (reason, p) => {
   console.log('Unhandled Rejection at:', p, 'reason:', reason)
   // application specific logging, throwing an error, or other logic here
 })
+
 
 ;(async () => {
   const onError = function(error) {
@@ -51,7 +47,10 @@ process.on('unhandledRejection', (reason, p) => {
     console.log('hi', Date.now())
     next()
   })
-  app.use(await create_form_routes(template, path.resolve('./test/form_schema_example.js')))
+  app.use(await create_form_routes(
+    path.resolve('./test/form_test_templates/form_template_good.mustache'),
+    path.resolve('./test/form_schema_example.js')
+  ))
   app.set('port', port)
 
   const server = http.createServer(app)

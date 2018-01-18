@@ -17,71 +17,48 @@ chai.use(require('chai-diff'))
 chai.use(require('chai-as-promised'))
 const { expect } = chai
 
-const form_schema_path = path.join(__dirname, './form_schema_example.js')
+const form_template_path = path.join(__dirname, 'form_test_templates/form_template_good.mustache')
+const form_schema_path = path.join(__dirname, 'form_schema_example.js')
 
 
-describe('Ensure html contains required code', function() {
+describe('Ensure form_template file contains required code', function() {
   it('form_html', function() {
-    const template = '<script>var form_type = {{form_type}}</script>'
+    const template_path = path.join(
+      __dirname,
+      'form_test_templates/form_template_missing-form_html.mustache'
+    )
 
-    return expect(create_form_routes(template))
+    return expect(create_form_routes(template_path, form_schema_path))
       .to.be.rejectedWith('Form template missing: {{form_html}}')
   })
 
   it('form_type', function() {
-    const template = '<body>{{form_html}}</body>'
+    const template_path = path.join(
+      __dirname,
+      'form_test_templates/form_template_missing-form_type.mustache'
+    )
 
-    return expect(create_form_routes(template))
+    return expect(create_form_routes(template_path, form_schema_path))
       .to.be.rejectedWith('Form template missing: <script>var form_type = {{form_type}}</script>')
   })
 })
 
-describe('form_template', function() {
-  it('is undefined', function() {
-    return expect(create_form_routes(undefined, form_schema_path))
-      .to.be.rejectedWith('form_template must be a html string')
+describe('bad file paths throw error', function() {
+  it('form_schema_path', function() {
+    const bad_schema_path = 'this is not a file path'
+
+    return expect(create_form_routes(form_template_path, bad_schema_path))
+      .to.be.rejectedWith(`ENOENT: no such file or directory, access '${bad_schema_path}'`)
+  })
+
+  it('form_schema_path', function() {
+    const bad_template_path = 'this is not a file path'
+
+    return expect(create_form_routes(bad_template_path, form_schema_path))
+      .to.be.rejectedWith(`ENOENT: no such file or directory, access '${bad_template_path}'`)
   })
 })
 
-describe('form_schema_path', function() {
-  const template = `
-    <body>{{form_html}}</body>
-    <script>var form_type = {{form_type}}</script>
-    `
-
-  it('bad path', function() {
-    const bad_file_path = 'this is not a file path'
-
-    return expect(create_form_routes(template, bad_file_path))
-      .to.be.rejectedWith(`Cannot find form_schema_path file '${bad_file_path}' from '${path.resolve(__dirname, '..')}'`)
-  })
-
-  it('undefined path', function() {
-    const bad_file_path = undefined
-
-    return expect(create_form_routes(template, bad_file_path))
-      .to.be.rejectedWith(`Cannot find form_schema_path file '${bad_file_path}' from '${path.resolve(__dirname, '..')}'`)
-  })
-
-  it('full path', function() {
-    return create_form_routes(template, form_schema_path)
-  })
-
-})
-
-
-
-const form_template =
-`<!DOCTYPE html>
-<html>
-<head></head>
-<body>
-{{form_html}}
-</body>
-</html>
-
-<script>var form_type = {{form_type}}</script>
-`
 
 describe('run app', async function() {
   let request
@@ -89,7 +66,7 @@ describe('run app', async function() {
     // initalize app
     const app = express()
     try {
-      app.use('/', await create_form_routes(form_template, form_schema_path))
+      app.use('/', await create_form_routes(form_template_path, form_schema_path))
     } catch(err) {
       throw combineErrors([new Error('Problem creating app'), err])
     }
