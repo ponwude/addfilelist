@@ -63,35 +63,31 @@ async function post_to_database(knex_db, schema_path) {
       const validators = _.mapValues(table_schema_obj, 'validate')
       router.post(
         '/' + name, // url
-        async (req, res, next) => {
+        async (req, res) => {
           // middleware for joi
           const { body } = req
 
-          const val_errors = [],
+          const val_errors = {},
                 val_promises = table_schema_arr.map(async ({ name, validate }) => {
                   try {
                     body[name] = await validate.validate(body[name])
                   } catch(err) {
-                    val_errors.push(err)
+                    val_errors[name] = err.details[0].message
+                      .replace('"value" ', '')
                   }
                 })
 
           for (let pi = val_promises.length - 1; pi >= 0; --pi)
             await val_promises[pi]
 
-          if (val_errors.length > 0) {
-            console.log('val_errors.length', val_errors.length)
-            res
-              .status(400)
-              .json(val_errors)
-          } else {
-            next()
+          // console.log('val_errors', val_errors)
+          if (!_.isEmpty(val_errors))
+            res.status(400).json(val_errors)
+          else {
+            await knex_db(name).insert(body)
+
+            res.status(200).json(true)
           }
-        },
-        (req, res) => {
-          res
-            .status(400)
-            .json('hi')
         },
       )
     }

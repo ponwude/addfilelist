@@ -24,23 +24,27 @@ const schema = require(schema_path)
 
 context('fresh database', function() {
 
-  let knex_db, db_destroyed
+  let knex_db, db_destroyed = true
   const new_database = function() {
-    knex_db = KNEX({
-      client: 'sqlite3',
-      connection: {filename: ':memory:'},
-      useNullAsDefault: true,
-    })
+    if (db_destroyed) {
+      knex_db = KNEX({
+        client: 'sqlite3',
+        connection: {filename: ':memory:'},
+        useNullAsDefault: true,
+      })
 
-    db_destroyed = false
+      db_destroyed = false
+    }
   }
 
   const destroy_database = function() {
     return new Promise(resolve => {
-      if (db_destroyed) resolve()
-
-      db_destroyed = true
-      knex_db.destroy(resolve)
+      if (db_destroyed)
+        resolve()
+      else {
+        db_destroyed = true
+        knex_db.destroy(resolve)
+      }
     })
   }
   before(new_database)
@@ -209,14 +213,10 @@ context('fresh database', function() {
       request = supertest(app)
     })
 
-    afterEach(destroy_database)
+    after(destroy_database)
 
-    it.only('error message sent back', async function() {
+    it('multiple validation errors sent back', async function() {
       const post_to = 'form2'
-      const error_response = {
-        input0: 'hi',
-        input2: 'too short',
-      }
 
       const { body } = await request
         .post('/' + post_to)
@@ -224,22 +224,87 @@ context('fresh database', function() {
         // .set('Content-Type', 'application/x-www-form-urlencoded')
         .send({
           input0: 'not a number',
-          input1: 'isgood',
+          input1: '1',
           input2: '12',
         })
         .expect('Content-Type', /json/)
         .expect(400)
 
-      console.log('body.length', body.length)
-      console.log(_.map(body, 'details[0].message'))
-      throw new Error('not finished')
-      // expect(body).to.eql(error_response)
-      // expect(_.pick(body, ['input0', 'input2'])).to.eql(error_response)
+      expect(body).to.eql({
+        input0: 'must only contain alpha-numeric characters',
+        input2: 'length must be at least 3 characters long',
+      })
     })
 
-    it('data is cleaned before being put in database')
+    it('when validation data is not put to database', async function() {
+      const post_to = 'form0'
 
-    it('multiple data validation errors sent back')
+      await request
+        .post('/' + post_to)
+        .type('form')
+        .send({input0: '%%%'})
+        .expect('Content-Type', /json/)
+        .expect(400)
+
+      expect(await knex_db(post_to).select('input0'))
+        .to.have.lengthOf(0)
+    })
+
+    it('true returned when successfully put in database', async function() {
+      const { body } = await request
+        .post('/form0')
+        .type('form')
+        .send({input0: 'a'})
+        .expect('Content-Type', /json/)
+        .expect(200)
+
+      expect(body).to.be.true
+    })
+
+    it('data is put in database', async function() {
+      const post_to = 'form2'
+      const data = {
+        input0: 'alphanum',
+        input1: 1,
+        input2: 1234,
+      }
+
+      await request
+        .post('/' + post_to)
+        .type('form')
+        .send(data)
+        .expect('Content-Type', /json/)
+        .expect(200)
+
+      const table_rows = await knex_db(post_to).select('*')
+
+      expect(table_rows).to.have.lengthOf(1)
+
+      const [ row_data ] = table_rows
+      expect(row_data).to.eql(data)
+    })
+
+    it('data is cleaned before being put in database', async function() {
+      const post_to = 'form1'
+
+      await request
+        .post('/' + post_to)
+        .type('form')
+        .send({
+          input0: 123,
+          input1: 'HI THERE', // to lowercase
+          input2: 'again', // to uppercase
+        })
+        .expect('Content-Type', /json/)
+        .expect(200)
+
+      const [ row ] = await knex_db(post_to).select('*')
+      expect(row).to.eql({
+        input0: 123,
+        input1: 'hi there', // to lowercase
+        input2: 'AGAIN', // to uppercase
+      })
+    })
 
   })
 })
