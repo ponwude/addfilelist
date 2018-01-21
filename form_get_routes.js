@@ -10,9 +10,6 @@ const express = require('express')
 const { JSDOM } = require('jsdom')
 
 const form_builder = require('./form_builder.js')
-const { window } = new JSDOM('<!DOCTYPE html><body></body>')
-const { document } = window.window
-
 
 const apply_validation_entry =
 `window.apply_validation = require('./apply_validation.js')
@@ -30,7 +27,7 @@ const template_needs = Object.freeze({
 })
 
 
-async function create_form_routes(form_template_path, form_schema_path) {
+async function form_get_routes(form_template_path, form_schema_path) {
   // checks
   await Promise.all([form_template_path, form_schema_path].map(p => fs.access(p)))
 
@@ -67,9 +64,8 @@ async function create_form_routes(form_template_path, form_schema_path) {
 
   // create router
   const router = express.Router()
-
   const schemas = require(form_schema_path)
-
+  const { document } = new JSDOM('<!DOCTYPE html><body></body>').window
   for (const route in schemas) {
     if (schemas.hasOwnProperty(route)) {
       const page_html = form_template
@@ -77,7 +73,7 @@ async function create_form_routes(form_template_path, form_schema_path) {
         .replace('{{form_type}}', JSON.stringify(route))
         + `<script>${bundle}</script>\n`
 
-      router.get(route, (req, res) => {
+      router.get('/' + route, (req, res) => {
         res.set('Content-Type', 'text/html')
         res.send(page_html)
       })
@@ -90,4 +86,4 @@ async function create_form_routes(form_template_path, form_schema_path) {
 }
 
 
-module.exports = create_form_routes
+module.exports = form_get_routes

@@ -5,7 +5,7 @@ const http = require('http')
 const path = require('path')
 const express = require('express')
 
-const create_form_routes = require('./create_form_routes.js')
+const form_get_routes = require('./form_get_routes.js')
 
 const debug = require('debug')('example-server:server')
 
@@ -47,9 +47,9 @@ process.on('unhandledRejection', (reason, p) => {
     console.log('hi', Date.now())
     next()
   })
-  app.use(await create_form_routes(
+  app.use(await form_get_routes(
     path.resolve('./test/form_test_templates/form_template_good.mustache'),
-    path.resolve('./test/form_schema_example.js')
+    path.resolve('./test/form_schemas/form_test_schema.js')
   ))
   app.set('port', port)
 

@@ -6,17 +6,18 @@
 const chokidar = require('chokidar')
 const { exec } = require('child-process-promise')
 const fs = require('then-fs')
+const path = require('path')
 const moment = require('moment')
 
-const {dependency_tree, sort_test_order} = require('./dependency_tree.js')
+const { dependency_tree, sort_test_order } = require('./dependency_tree.js')
 
 const _ = require('lodash')
 
-const config = require('./test_watcher.config.js')
+const config_path = path.resolve('./test_watcher.config.js')
+const config = require(config_path)
 
 
 setup(config)
-
 
 
 async function setup(config, queue_time=300) {
@@ -198,3 +199,9 @@ function log_exit(err) {
   console.error(err)
   process.exit(1)
 }
+
+
+chokidar.watch(config_path)
+  .on('change', () => {
+    log_exit('Config file has changed.')
+  })

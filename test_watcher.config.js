@@ -7,10 +7,22 @@ module.exports = {
     test_file: 'test/test_while_monitoring.js',
     to_test: 'test/while_monitoring.js',
   },
-  create_form_routes: {
-    test_file: 'test/test_create_form_routes.js',
-    to_test: 'create_form_routes.js',
-    extra_dependancies: ['apply_validation.js'],
+  form_get_routes: {
+    test_file: 'test/test_form_get_routes.js',
+    to_test: 'form_get_routes.js',
+    extra_dependancies: [
+      'apply_validation.js',
+      'test/form_schemas/form_test_schema.js',
+    ],
+  },
+  post_to_database: {
+    test_file: 'test/test_post_to_database.js',
+    to_test: 'post_to_database.js',
+    extra_dependancies: [
+      'test/form_schemas/form_test_schema.js',
+      'test/form_schemas/undefined_validation.js',
+      'form_get_routes.js',
+    ],
   },
   form_builder: {
     test_file: 'test/test_form_builder.js',

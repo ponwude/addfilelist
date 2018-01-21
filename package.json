@@ -18,13 +18,14 @@
   "homepage": "https://github.com/BebeSparkelSparkel/form_database#readme",
   "dependencies": {
     "browserify": "^14.5.0",
-    "celebrate": "^6.0.0",
+    "celebrate": "^7.0.4",
     "concat-stream-promise": "^0.1.1",
     "event_sequencing": "github:BebeSparkelSparkel/event_sequencing",
     "express": "^4.16.2",
     "joi": "^13.0.1",
     "joi-browser": "^13.0.1",
     "jsdom": "^11.5.1",
+    "knex": "^0.14.2",
     "string-to-stream": "^1.1.0",
     "tinyify": "^2.4.0",
     "uglify-js": "^3.2.1"
@@ -46,6 +47,7 @@
     "moment": "^2.19.3",
     "sinon": "^4.1.6",
     "sinon-chai": "^2.14.0",
+    "sqlite3": "^3.1.13",
     "supertest": "^3.0.0",
     "then-fs": "^2.0.0"
   },
