@@ -4,15 +4,16 @@ const { JSDOM } = require('jsdom')
 window = new JSDOM('<!DOCTYPE html><body></body>').window //eslint-disable-line no-global-assign, prefer-destructuring
 const { document } = window.window
 
+require('./unhandled.js')
 
 // testing
-const fb = require('../form_builder.js')
-const form_builder =  (schema, options={}) => fb(schema, Object.assign({document}, options))
+const form_builder = require('../form_builder.js')
+form_builder.document = document
+
 
 const chai = require('chai')
 chai.use(require('chai-dom'))
-chai.should()
-const {expect} = chai
+const { expect } = chai
 
 
 describe('Create a form.', function() {
@@ -164,5 +165,27 @@ describe('Create a form.', function() {
       expect(submit_input).to.have.attr('type', 'submit')
       expect(submit_input).to.have.value('Push to Submit')
     })
+  })
+
+  it('do not add inputs marked with form_skip=true', function() {
+    const schema = [
+      {
+        name: 'db0',
+        form_skip: true,
+      },
+      {
+        name: 'input0',
+      },
+    ]
+
+    const form = form_builder(schema)
+
+    // const inputs = Array.from(form.querySelectorAll('input'))
+    // /*eslint-disable no-console */
+    // console.log(inputs.map(i => i.name))
+    // console.log(form)
+    // console.log('inputs', inputs)
+    expect(form.querySelector('input[name=input0]')).to.exist
+    expect(form.querySelector('input[name=db0]')).to.not.exist
   })
 })

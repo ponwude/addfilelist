@@ -4,6 +4,8 @@ const chai = require('chai')
 const { expect } = chai
 chai.should()
 
+require('./unhandled.js')
+
 const { JSDOM } = require('jsdom')
 const { window } = new JSDOM('<!DOCTYPE html><body></body>')
 const { window: document, Event } = window.window

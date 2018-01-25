@@ -9,6 +9,8 @@ const chai = require('chai')
 chai.use(require('chai-as-promised'))
 const { expect } = chai
 
+require('./unhandled.js')
+
 const express = require('express')
 const supertest = require('supertest')
 
@@ -25,7 +27,7 @@ const schema = require(schema_path)
 context('fresh database', function() {
 
   let knex_db, db_destroyed = true
-  const new_database = function() {
+  const new_database = async function() {
     if (db_destroyed) {
       knex_db = KNEX({
         client: 'sqlite3',
@@ -36,16 +38,9 @@ context('fresh database', function() {
       db_destroyed = false
     }
   }
-
-  const destroy_database = function() {
-    return new Promise(resolve => {
-      if (db_destroyed)
-        resolve()
-      else {
-        db_destroyed = true
-        knex_db.destroy(resolve)
-      }
-    })
+  const destroy_database = async function() {
+    await knex_db.destroy()
+    db_destroyed = true
   }
   before(new_database)
   after(destroy_database)
@@ -56,7 +51,7 @@ context('fresh database', function() {
       .to.be.rejectedWith(`ENOENT: no such file or directory, access '${bad_path}'`)
   })
 
-  it('schema missing validation', async function() {
+  it('schema undefined validation', async function() {
     const unvalidated_path = path.join(schema_dir, 'undefined_validation.js')
 
     return expect(post_to_database(knex_db, unvalidated_path))
@@ -70,9 +65,23 @@ context('fresh database', function() {
       .to.be.rejectedWith(`Cannot parse javascript file: ${parse_path}`)
   })
 
+  it('name is undefined', function() {
+    const schema_path = path.join(schema_dir, 'name_is_undefined.js')
+
+    return expect(post_to_database(knex_db, schema_path))
+      .to.be.rejectedWith('You did not specify a column name for the floating column.')
+  })
+
   describe('database initialized correctly', function() {
     beforeEach(new_database)
     afterEach(destroy_database)
+
+    it('undefined data type for database', function() {
+      const schema_path = path.join(schema_dir, 'undefined_database_data_type.js')
+
+      return expect(post_to_database(knex_db, schema_path))
+        .to.be.rejectedWith('The column db0 in table undefined_type does not have "database_type" defined')
+    })
 
     describe('new table created', function() {
 
@@ -221,7 +230,6 @@ context('fresh database', function() {
       const { body } = await request
         .post('/' + post_to)
         .type('form')
-        // .set('Content-Type', 'application/x-www-form-urlencoded')
         .send({
           input0: 'not a number',
           input1: '1',
@@ -308,13 +316,6 @@ context('fresh database', function() {
 
   })
 })
-
-
-
-
-it('knex_db is not a knex object')
-
-  
 
 
 it('needs default security checks')

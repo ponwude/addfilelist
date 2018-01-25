@@ -1,6 +1,13 @@
+/*eslint-disable no-console, no-unused-vars */
+/*globals XMLHttpRequest */
+
 const Sequence = require('event_sequencing')
 
-module.exports = function(form, schema) {
+
+function apply_validation(form, schema, {
+  on_validated_submit = ()=>{},
+  on_invalidated_submit = ()=>{},
+}={}) {
   /*
   Applies the validaton to the from from schema.
 
@@ -59,16 +66,55 @@ module.exports = function(form, schema) {
       return val_func
     })
 
-  form.addEventListener('submit', async e => {
-    e.preventDefault()
-    e.stopPropagation()
+  form.addEventListener('submit', async submit_event => {
+    submit_event.preventDefault()
+    submit_event.stopPropagation()
 
-    const validations = await Promise.all(val_funcs.map(f => f()))
+    const all_valid = (await Promise.all(
+      val_funcs.map(f => f()) // start all validation functions
+    )).every(a=>a) // true true if all true
 
-    form.dispatchEvent(new Event(
-      validations.every(a=>a) ? 'valid' : 'invalid'
-    ))
+    if (all_valid) {
+      form.dispatchEvent(new Event('valid'))
+      on_validated_submit(form)
+    } else {
+      form.dispatchEvent(new Event('invalid'))
+      on_invalidated_submit(form)
+    }
   })
 
   return form
 }
+
+// const xhr = new window.XMLHttpRequest()
+// xhr.open('post', `/$`)
+// xhr.onreadystatechange(() => {
+//   if (xhr.readyState === window.XMLHttpRequest.DONE) {
+//     console.log('xhr.status', xhr.status)
+//     if (status(xhr).is(/2../)) 'hi'
+//   }
+// })
+// function status(xhr) {
+//   return {
+//     is(selector) {
+//       // const xhr_status = String(xhr.status)
+
+//       // let matched
+//       // try {
+//       //   matched = selector.exec(xhr_status)
+//       // } catch(err) {
+//       //   throw new Error(`xhr_status: ${xhr_status}`)
+//       // }
+
+//       // if (matched === null) return false
+
+//       // if (matched[0] !== xhr_status)
+//       //   throw new Error(`regex selector ${selector} matched "${matched[0]}" not the whole xhr.status "${xhr_status}"`)
+
+//       return true
+//     },
+//   }
+// }
+
+
+module.exports = apply_validation

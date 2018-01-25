@@ -2,6 +2,8 @@
 
 const add_method = require('../add_method.js')
 
+require('./unhandled.js')
+
 const chai = require('chai')
 const {expect} = chai
 

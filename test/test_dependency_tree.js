@@ -3,6 +3,8 @@ const chai = require('chai')
 const { expect } = chai
 const path = require('path')
 
+require('./unhandled.js')
+
 const {node, dependency_tree, sort_test_order} = require('../dependency_tree.js')
 
 

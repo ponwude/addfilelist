@@ -20,7 +20,7 @@ const config = require(config_path)
 setup(config)
 
 
-async function setup(config, queue_time=300) {
+async function setup(config, queue_time=100) {
 
   const watch_files = new Set()
   const test_functions = {}

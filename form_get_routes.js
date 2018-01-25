@@ -11,14 +11,19 @@ const { JSDOM } = require('jsdom')
 
 const form_builder = require('./form_builder.js')
 
-const apply_validation_entry =
-`window.apply_validation = require('./apply_validation.js')
-window.form_schemas = require('{{form_schema_path}}')
+const apply_validation_entry = `
+  window.apply_validation = require('./apply_validation.js')
+  window.form_schemas = require('{{form_schema_path}}')
+  window.on_validated_submit = require('./on_validated_submit.js')
 
-apply_validation(document.querySelector('form'), form_schemas[form_type])
+  const form = apply_validation(
+    document.querySelector('form'),
+    form_schemas[form_type],
+    {on_validated_submit}
+  )
 
-if (window.run_if_loaded_for_test !== undefined) window.run_if_loaded_for_test()
-else window.loaded_for_test = true
+  if (window.run_if_loaded_for_test !== undefined) window.run_if_loaded_for_test()
+  else window.loaded_for_test = true
 `
 
 const template_needs = Object.freeze({
@@ -61,7 +66,6 @@ async function form_get_routes(form_template_path, form_schema_path) {
     } catch(err) {reject(err)}
   })).toString('utf8')
 
-
   // create router
   const router = express.Router()
   const schemas = require(form_schema_path)
@@ -85,5 +89,40 @@ async function form_get_routes(form_template_path, form_schema_path) {
   return router
 }
 
+Object.defineProperty(form_get_routes, 'document', {
+  set(document) {form_builder.document = document},
+})
+try {
+  form_get_routes.document = document
+} catch(err) {
+  form_get_routes.document = undefined
+}
+
+// describe('post request', function() {
+//   it.only('is made', async function() {
+//     const { form, input_0, input_1, input_2 } = elements
+//     input_0.value = input_0_vals.good
+//     input_1.value = input_1_vals.good
+//     input_2.value = input_2_vals.good
+
+//     const request = []
+//     xhr.onCreate= xhr_obj => {request.push(xhr_obj)}
+
+//     await while_monitoring(form).expect('valid').upon_event('submit')
+
+//     request.should.have.lengthOf(1)
+
+//     throw new Error('test not finished')
+//   })
+
+//   it('contains form data')
+
+//   it('is not made with failed validation')
+
+//   it('fails after timeout')
+
+//   it('callback on form submit success')
+//   it('callback on form submit failure')
+// })
 
 module.exports = form_get_routes

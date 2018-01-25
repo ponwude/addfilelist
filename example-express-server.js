@@ -3,17 +3,22 @@
 
 const http = require('http')
 const path = require('path')
+
 const express = require('express')
 
 const form_get_routes = require('./form_get_routes.js')
+const post_to_database = require('./post_to_database.js')
 
 const debug = require('debug')('example-server:server')
 
-
-process.on('unhandledRejection', (reason, p) => {
-  console.log('Unhandled Rejection at:', p, 'reason:', reason)
-  // application specific logging, throwing an error, or other logic here
+const knex = require('knex')({
+  client: 'sqlite3',
+  connection: {filename: './example-express-server.db'},
+  useNullAsDefault: true,
 })
+
+
+require('./unhandled.js')
 
 
 ;(async () => {
@@ -51,6 +56,7 @@ process.on('unhandledRejection', (reason, p) => {
     path.resolve('./test/form_test_templates/form_template_good.mustache'),
     path.resolve('./test/form_schemas/form_test_schema.js')
   ))
+  app.use(await post_to_database(knex, './test/form_schemas/form_test_schema.js'))
   app.set('port', port)
 
   const server = http.createServer(app)

@@ -7,6 +7,8 @@ const { document, Event } = window.window
 const chai = require('chai')
 const { expect } = chai
 
+require('./unhandled.js')
+
 const { set_val } = require('./support_test_functions.js')
 set_val.Event = Event
 

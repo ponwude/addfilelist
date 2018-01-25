@@ -31,15 +31,14 @@ Example schema:
 
 const add_method = require('./add_method.js')
 
-module.exports = function(schema,
+function form_builder(schema,
   // options
   {
     form_attributes={method: 'post'},
     submit_text='Submit',
-    document=document, // document to create elements with
   }={}
 ) {
-  const form = document.createElement('form')
+  const form = form_builder.document.createElement('form')
   form_attributes.forEach((attr, attr_value) => form.setAttribute(attr, attr_value))
 
   const createAppendElement = function (parent, tag) {
@@ -51,14 +50,22 @@ module.exports = function(schema,
     parent - element that the new element is appended to
     tag - string that defines the new element's tag
     */
-    const new_element = document.createElement(tag)
+    const new_element = form_builder.document.createElement(tag)
     parent.appendChild(new_element)
     return new_element
   }
 
   schema.forEach(spec => {
     // console.log(spec)
-    const {label: label_text='', name, attr: attributes={}} = spec
+    const {
+      label: label_text = '',
+      name,
+      attr: attributes = {},
+      form_skip = false,
+    } = spec
+
+    if (form_skip) return
+    if (name === undefined) throw new Error('No name specified for input.')
 
     const input_div = createAppendElement(form, 'div')
 
@@ -67,7 +74,6 @@ module.exports = function(schema,
 
     // create input and apply its attributes
     const input = createAppendElement(input_div, 'input')
-    if (name === undefined) throw new Error('No name specified for input.')
     input.name = name
     attributes.forEach((attr, attr_value) => {
       input.setAttribute(attr, attr_value)
@@ -88,6 +94,11 @@ module.exports = function(schema,
   return form
 }
 
+try {
+  form_builder.document = document
+} catch(err) {
+  form_builder.document = undefined
+}
 
 add_method('forEach', Object, function(func) {
   for (const key in this) {
@@ -96,3 +107,6 @@ add_method('forEach', Object, function(func) {
     }
   }
 })
+
+
+module.exports = form_builder
