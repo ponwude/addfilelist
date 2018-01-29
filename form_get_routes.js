@@ -70,6 +70,7 @@ async function form_get_routes(form_template_path, form_schema_path) {
   const router = express.Router()
   const schemas = require(form_schema_path)
   const { document } = new JSDOM('<!DOCTYPE html><body></body>').window
+  form_builder.document = document
   for (const route in schemas) {
     if (schemas.hasOwnProperty(route)) {
       const page_html = form_template
@@ -89,40 +90,5 @@ async function form_get_routes(form_template_path, form_schema_path) {
   return router
 }
 
-Object.defineProperty(form_get_routes, 'document', {
-  set(document) {form_builder.document = document},
-})
-try {
-  form_get_routes.document = document
-} catch(err) {
-  form_get_routes.document = undefined
-}
-
-// describe('post request', function() {
-//   it.only('is made', async function() {
-//     const { form, input_0, input_1, input_2 } = elements
-//     input_0.value = input_0_vals.good
-//     input_1.value = input_1_vals.good
-//     input_2.value = input_2_vals.good
-
-//     const request = []
-//     xhr.onCreate= xhr_obj => {request.push(xhr_obj)}
-
-//     await while_monitoring(form).expect('valid').upon_event('submit')
-
-//     request.should.have.lengthOf(1)
-
-//     throw new Error('test not finished')
-//   })
-
-//   it('contains form data')
-
-//   it('is not made with failed validation')
-
-//   it('fails after timeout')
-
-//   it('callback on form submit success')
-//   it('callback on form submit failure')
-// })
 
 module.exports = form_get_routes

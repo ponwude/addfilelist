@@ -25,6 +25,7 @@ const schema = require(schema_path)
 
 
 context('fresh database', function() {
+  this.timeout(200)
 
   let knex_db, db_destroyed = true
   const new_database = async function() {
@@ -42,34 +43,37 @@ context('fresh database', function() {
     await knex_db.destroy()
     db_destroyed = true
   }
-  before(new_database)
-  after(destroy_database)
 
-  it('schema_path is a bad path', function() {
-    const bad_path = 'bad file path'
-    return expect(post_to_database(knex_db, bad_path))
-      .to.be.rejectedWith(`ENOENT: no such file or directory, access '${bad_path}'`)
-  })
+  describe('setup errors', function() {
+    before(new_database)
+    after(destroy_database)
 
-  it('schema undefined validation', async function() {
-    const unvalidated_path = path.join(schema_dir, 'undefined_validation.js')
+    it('schema_path is a bad path', function() {
+      const bad_path = 'bad file path'
+      return expect(post_to_database(knex_db, bad_path))
+        .to.be.rejectedWith(`ENOENT: no such file or directory, access '${bad_path}'`)
+    })
 
-    return expect(post_to_database(knex_db, unvalidated_path))
-      .to.be.rejectedWith('validate not defined for columns: input0, input1')
-  })
+    it('schema undefined validation', async function() {
+      const unvalidated_path = path.join(schema_dir, 'undefined_validation.js')
 
-  it('scheam parse error', function() {
-    const parse_path = path.join(schema_dir, 'parse_error.js')
+      return expect(post_to_database(knex_db, unvalidated_path))
+        .to.be.rejectedWith('validate not defined for columns: input0, input1')
+    })
 
-    return expect(post_to_database(knex_db, parse_path))
-      .to.be.rejectedWith(`Cannot parse javascript file: ${parse_path}`)
-  })
+    it('scheam parse error', function() {
+      const parse_path = path.join(schema_dir, 'parse_error.js')
 
-  it('name is undefined', function() {
-    const schema_path = path.join(schema_dir, 'name_is_undefined.js')
+      return expect(post_to_database(knex_db, parse_path))
+        .to.be.rejectedWith(`Cannot parse javascript file: ${parse_path}`)
+    })
 
-    return expect(post_to_database(knex_db, schema_path))
-      .to.be.rejectedWith('You did not specify a column name for the floating column.')
+    it('name is undefined', function() {
+      const schema_path = path.join(schema_dir, 'name_is_undefined.js')
+
+      return expect(post_to_database(knex_db, schema_path))
+        .to.be.rejectedWith('You did not specify a column name for the floating column.')
+    })
   })
 
   describe('database initialized correctly', function() {
@@ -198,9 +202,10 @@ context('fresh database', function() {
     })
   })
 
-  describe('data is validated/cleaned before being posted', function() {
+  context('can make requests to the post_to_database handler', function() {
+
     let request
-    before(async () => {
+    beforeEach(async function() {
       new_database()
 
       const app = express()
@@ -213,7 +218,7 @@ context('fresh database', function() {
         res.status(500)
         res.send('was not caught by routes')
       })
-      app.use(function(err, req, res) {
+      app.use(function(err, req, res, next) {
         // render the error page
         res.status(err.status || 500)
         res.send('error')
@@ -222,95 +227,145 @@ context('fresh database', function() {
       request = supertest(app)
     })
 
-    after(destroy_database)
+    afterEach(destroy_database)
 
-    it('multiple validation errors sent back', async function() {
-      const post_to = 'form2'
+    describe('catch validation errors', function() {
+      it('Content-Type is wrong and res.body is undefined', function() {
+        const post_to = 'form0'
 
-      const { body } = await request
-        .post('/' + post_to)
-        .type('form')
-        .send({
-          input0: 'not a number',
-          input1: '1',
-          input2: '12',
+        return request
+          .post('/' + post_to)
+          .timeout({
+            response: 100,
+            deadline: 200,
+          })
+          .type('json')
+          .send({input0: 'goodVal'}) // this has to be send
+          .expect(400, 'Wrong Content-Type of "application/json"" when expecting "multipart/form-data"')
+      })
+
+      it('has extra input fields', function() {
+        const post_to = 'form0'
+
+        return request
+          .post('/' + post_to)
+          .field({
+            input0: 'hi there',
+            bad_field: 'bad_field',
+            bad_field_2: 'bad_field_2',
+          })
+          .expect(400, 'Unexpected body fields: bad_field, bad_field_2')
+      })
+
+      it('missing required input fields', function() {
+        const post_to = 'form1'
+
+        return request
+          .post('/' + post_to)
+          .field({
+            input1: 'hi there',
+          })
+          .expect(400, 'Missing required body fields: input0, input2')
+      })
+
+      it('body cannot contain form_skip=true elements', function() {
+        const post_to = 'database_only'
+
+        return request
+          .post('/' + post_to)
+          .field({
+            db0: '',
+            db1: '',
+            input0: '',
+            input1: '',
+          })
+          .expect(400, 'Unexpected body fields: db0, db1')
+      })
+
+      it('multiple validation errors sent back', async function() {
+        const post_to = 'form2'
+
+        const { body } = await request
+          .post('/' + post_to)
+          .field({
+            input0: 'not a number',
+            input1: '1',
+            input2: '12',
+          })
+          .expect(400)
+
+        expect(body).to.eql({
+          input0: 'must only contain alpha-numeric characters',
+          input2: 'length must be at least 3 characters long',
         })
-        .expect('Content-Type', /json/)
-        .expect(400)
-
-      expect(body).to.eql({
-        input0: 'must only contain alpha-numeric characters',
-        input2: 'length must be at least 3 characters long',
       })
     })
 
-    it('when validation data is not put to database', async function() {
-      const post_to = 'form0'
+    describe('database checks', function() {
+      it('when validation data is not put to database', async function() {
+        const post_to = 'form0'
 
-      await request
-        .post('/' + post_to)
-        .type('form')
-        .send({input0: '%%%'})
-        .expect('Content-Type', /json/)
-        .expect(400)
+        await request
+          .post('/' + post_to)
+          .field({input0: '%%%'})
+          .expect('Content-Type', /json/)
+          .expect(400)
 
-      expect(await knex_db(post_to).select('input0'))
-        .to.have.lengthOf(0)
-    })
+        expect(await knex_db(post_to).select('input0'))
+          .to.have.lengthOf(0)
+      })
 
-    it('true returned when successfully put in database', async function() {
-      const { body } = await request
-        .post('/form0')
-        .type('form')
-        .send({input0: 'a'})
-        .expect('Content-Type', /json/)
-        .expect(200)
+      it('true returned when successfully put in database', async function() {
+        const { body } = await request
+          .post('/form0')
+          .field({input0: 'a'})
+          .expect('Content-Type', /json/)
+          .expect(200)
 
-      expect(body).to.be.true
-    })
+        expect(body).to.be.true
+      })
 
-    it('data is put in database', async function() {
-      const post_to = 'form2'
-      const data = {
-        input0: 'alphanum',
-        input1: 1,
-        input2: 1234,
-      }
+      it('data is put in database', async function() {
+        const post_to = 'form2'
+        const data = {
+          input0: 'alphanum',
+          input1: 1,
+          input2: 1234,
+        }
 
-      await request
-        .post('/' + post_to)
-        .type('form')
-        .send(data)
-        .expect('Content-Type', /json/)
-        .expect(200)
+        await request
+          .post('/' + post_to)
+          .field(data)
+          .expect('Content-Type', /json/)
+          .expect(200)
 
-      const table_rows = await knex_db(post_to).select('*')
+        const table_rows = await knex_db(post_to).select('*')
 
-      expect(table_rows).to.have.lengthOf(1)
+        expect(table_rows).to.have.lengthOf(1)
 
-      const [ row_data ] = table_rows
-      expect(row_data).to.eql(data)
-    })
+        const [ row_data ] = table_rows
+        expect(row_data).to.eql(data)
+      })
 
-    it('data is cleaned before being put in database', async function() {
-      const post_to = 'form1'
+      it('data is cleaned before being put in database', async function() {
+        const post_to = 'form1'
 
-      await request
-        .post('/' + post_to)
-        .type('form')
-        .send({
+        await request
+          .post('/' + post_to)
+          .field({
+            input0: 123,
+            input1: 'HI THERE', // to lowercase
+            input2: 'again', // to uppercase
+          })
+          .expect('Content-Type', /json/)
+          .expect(200)
+
+        const [ row ] = await knex_db(post_to).select('*')
+        expect(row).to.eql({
           input0: 123,
-          input1: 'HI THERE', // to lowercase
-          input2: 'again', // to uppercase
+          input1: 'hi there', // to lowercase
+          input2: 'AGAIN', // to uppercase
         })
-        .expect('Content-Type', /json/)
-        .expect(200)
-
-      const [ row ] = await knex_db(post_to).select('*')
-      expect(row).to.eql({
-        input0: 123,
-        input1: 'hi there', // to lowercase
-        input2: 'AGAIN', // to uppercase
       })
     })
 
@@ -319,3 +374,4 @@ context('fresh database', function() {
 
 
 it('needs default security checks')
+

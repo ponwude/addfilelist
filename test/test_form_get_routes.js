@@ -86,8 +86,6 @@ context('run app', async function() {
     app.use(bodyParser.json())
     app.use(bodyParser.urlencoded({ extended: false }))
 
-    form_get_routes.document = (new JSDOM()).window.document
-
     try {
       app.use('/', await form_get_routes(form_template_path, form_schema_path))
     } catch(err) {

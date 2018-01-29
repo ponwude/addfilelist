@@ -9,6 +9,8 @@ const bodyParser = require('body-parser')
 
 const { celebrate, Joi, errors } = require('celebrate')
 
+const multer = require('multer')
+
 
 async function post_to_database(knex_db, schema_path) {
   await fs.access(schema_path)
@@ -22,8 +24,6 @@ async function post_to_database(knex_db, schema_path) {
   })()
 
   const router = express.Router()
-  router.use(bodyParser.json())
-  router.use(bodyParser.urlencoded({ extended: false }))
 
   const create_table_promises = []
   for (const table_name in all_schemas) {
@@ -57,37 +57,85 @@ async function post_to_database(knex_db, schema_path) {
         }
       })
 
-      // throw error if column does not have a validator defined
-      const unvalidated = table_schema_arr
-        .filter(({validate, form_skip}) => validate === undefined && !form_skip)
-        .map(({name}) => name)
-      if (unvalidated.length > 0)
-        throw new Error(`For table ${table_name}, validate not defined for columns: ${unvalidated.join(', ')}`)
+      const form_input_properties = table_schema_arr
+        .filter(({form_skip}) => form_skip === undefined || form_skip === false)
 
-      // create routes
-      const validators = _.mapValues(table_schema_obj, 'validate')
+      // throw error if column does not have a validator defined
+      const unvalidated = _.filter(form_input_properties, {validate: undefined})
+      if (unvalidated.length > 0) {
+        const unvalidated_names = _.map(unvalidated, 'name')
+        throw new Error(`For table ${table_name}, validate not defined for columns: ${unvalidated_names.join(', ')}`)
+      }
+
+      // post handler
+      const form_input_names = _.map(form_input_properties, 'name')
+      const validators = _.mapValues(
+        _.pick(table_schema_obj, form_input_names),
+        'validate'
+      )
       router.post(
         '/' + table_name, // url
-        async (req, res) => {
-          // middleware for joi
+
+        (req, res, next) => {
+          /* Ensure corrct content type so that multer will create req.body
+            this should start validating header as well
+          */
+          const expected_type = 'multipart/form-data'
+          if (!req.is(expected_type))
+            res.status(400).send(`Wrong Content-Type of "${req.headers['content-type']}"" when expecting "${expected_type}"`)
+          else next()
+        },
+
+        multer({storage: multer.memoryStorage()}).any(), // parse multipart/form-data into the body
+
+        (req, res, next) => {
+          /* correct body fields/keys */
+          const { body } = req
+          const expected_body_keys = Object.keys(validators)
+          const body_keys = Object.keys(body)
+
+          const unexpected_body_keys = _.difference(body_keys, expected_body_keys)
+          if (unexpected_body_keys.length > 0) {
+            unexpected_body_keys.sort()
+            res.status(400).send(`Unexpected body fields: ${unexpected_body_keys.join(', ')}`)
+            return
+          }
+
+          const missing_body_keys = _.difference(expected_body_keys, body_keys)
+          if (missing_body_keys.length > 0) {
+            missing_body_keys.sort()
+            res.status(400).send(`Missing required body fields: ${missing_body_keys.join(', ')}`)
+            return
+          }
+
+          next()
+        },
+
+        async (req, res, next) => {
+          /* validate the body data */
           const { body } = req
 
-          const val_errors = {},
-                val_promises = table_schema_arr.map(
-                  async ({ name: col_name, validate }) => {
-                    try {
-                      body[col_name] = await validate.validate(body[col_name])
-                    } catch(err) {
-                      val_errors[col_name] = err.details[0].message
-                        .replace('"value" ', '')
-                    }
-                  }
-                )
+          // validate input values
+          const val_errors = {}
+          const val_promises = table_schema_arr.map(
+            async ({ name: col_name, validate }) => {
+              try {
+                body[col_name] = await validate.validate(body[col_name])
+              } catch(err) {
+                if (err.isJoi && err.details !== undefined) {
+                  val_errors[col_name] = err.details[0].message
+                    .replace('"value" ', '')
+                } else {
+                  console.error(err.message)
+                  next(err.message)
+                }
+              }
+            }
+          )
 
           for (let pi = val_promises.length - 1; pi >= 0; --pi)
             await val_promises[pi]
 
-          // console.log('val_errors', val_errors)
           if (!_.isEmpty(val_errors))
             res.status(400).json(val_errors)
           else {

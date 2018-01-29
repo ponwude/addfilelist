@@ -39,7 +39,7 @@ function set_val(
   {
     dispatch=['blur', 'keyup'], // dispatch events after event is set. String, Array of Strings, empty Array
     resolve_events=['valid', 'invalid'], // wait for events to be dispatched before promise is resolved. String, Array of Strings, empty Array
-    timeout=100,
+    timeout=10,
   }={}
 ) {
   if (!Array.isArray(dispatch)) dispatch = [dispatch]

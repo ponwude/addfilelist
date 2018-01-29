@@ -51,7 +51,7 @@ function while_monitoring(element) {
     ['at', 'mocha'],
   ])
 
-  const default_wait = 100 // mili-seconds
+  const default_wait = 10 // mili-seconds
 
   return {
     expect(events) {

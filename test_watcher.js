@@ -20,7 +20,10 @@ const config = require(config_path)
 setup(config)
 
 
-async function setup(config, queue_time=100) {
+async function setup(config, {
+  queue_time = 100,
+  max_test_time = 5000,
+}={}) {
 
   const watch_files = new Set()
   const test_functions = {}
@@ -78,10 +81,17 @@ async function setup(config, queue_time=100) {
 
         for (let ci = 0; ci < commands.length; ++ci) {
           try {
-            results += await commands[ci]()
+            results += await Promise.race([
+              commands[ci](),
+              new Promise((_, reject) => setTimeout(() => {
+                reject(new Error(`test_watcher killed ${label} at command ${ci} because it timed over ${max_test_time}.\n`))
+              }, max_test_time)),
+            ])
           } catch(err) {
             if (err.stdout !== undefined) results += err.stdout
             if (err.stderr !== undefined) results += err.stderr
+            if (err.stdout === undefined && err.stderr === undefined)
+              results += err.message
 
             passed = false
             break

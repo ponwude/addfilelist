@@ -1,10 +1,14 @@
 /*eslint-disable no-console */
 /*global process */
 
+const port = '3000'
+
+
 const http = require('http')
 const path = require('path')
 
 const express = require('express')
+const logger = require('morgan')
 
 const form_get_routes = require('./form_get_routes.js')
 const post_to_database = require('./post_to_database.js')
@@ -17,11 +21,36 @@ const knex = require('knex')({
   useNullAsDefault: true,
 })
 
-
-require('./unhandled.js')
+const unhandled_events = [
+  'unhandledRejection',
+  'uncaughtException',
+]
+function handler(err) {
+  throw err
+}
+unhandled_events.forEach( e => process.on(e, handler) )
 
 
 ;(async () => {
+
+  const app = express()
+
+  app.use(logger('dev'))
+
+  app.use(await form_get_routes(
+    path.resolve('./test/form_test_templates/form_template_good.mustache'),
+    path.resolve('./test/form_schemas/form_test_schema.js')
+  ))
+  console.log('form_get_routes complete')
+
+  app.use(await post_to_database(knex, './test/form_schemas/form_test_schema.js'))
+  console.log('post_to_database complete')
+
+  app.set('port', port)
+
+
+  const server = http.createServer(app)
+
   const onError = function(error) {
     if (error.syscall !== 'listen') {
       throw error
@@ -45,22 +74,8 @@ require('./unhandled.js')
         throw error
     }
   }
-
-  const port = '3000'
-  const app = express()
-  app.use((req, res, next) => {
-    console.log('hi', Date.now())
-    next()
-  })
-  app.use(await form_get_routes(
-    path.resolve('./test/form_test_templates/form_template_good.mustache'),
-    path.resolve('./test/form_schemas/form_test_schema.js')
-  ))
-  app.use(await post_to_database(knex, './test/form_schemas/form_test_schema.js'))
-  app.set('port', port)
-
-  const server = http.createServer(app)
   server.on('error', onError)
+
   server.on('listening', function() {
     const addr = server.address()
     const bind = typeof addr === 'string'
