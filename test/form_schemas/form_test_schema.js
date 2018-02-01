@@ -80,5 +80,31 @@ module.exports = {
       validate: Joi.number().integer().required(),
       database_type: 'float',
     },
-  ]
+  ],
+  file_inputs: [
+    {
+      name: 'file_meta',
+      attr: {type: 'file'};
+      validate: {
+        meta: ,
+      },
+      database_type: 'string',
+    },
+    // {
+    //   name: 'file_contents',
+    //   attr: {type: 'file'};
+    //   validate: {
+    //     contents: ,
+    //   },
+    //   database_type: 'string',
+    // },
+    // {
+    //   name: 'file_meta_contents',
+    //   attr: {type: 'file'};
+    //   validate: {
+    //     meta: ,
+    //     contents: ,
+    //   }
+    // },
+  ],
 }

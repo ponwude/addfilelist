@@ -68,4 +68,7 @@ function createFile(file_path) {
 }
 
 
-module.exports = addFileList
+module.exports = {
+  addFileList,
+  createFile,
+}

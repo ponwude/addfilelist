@@ -301,6 +301,12 @@ context('fresh database', function() {
       })
     })
 
+    describe('file validation', function() {
+      it('inserts file to database')
+      it('returns 400 error on file validation error')
+      it('empty file')
+    })
+
     describe('database checks', function() {
       it('when validation data is not put to database', async function() {
         const post_to = 'form0'

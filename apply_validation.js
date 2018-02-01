@@ -14,13 +14,69 @@ function apply_validation(form, schema, {
   form needs to contain the inputs with the name attributes that match schema names
   */
   const val_funcs = schema
-    .filter(spec => spec.validate !== undefined)
-    .map(spec => {
-      const input = form.querySelector(`input[name="${spec.name}"]`),
+    .filter(({validate}) => validate !== undefined)
+    .map(({name, attr={}, validate}) => {
+      const { type='text' } = attr
+      const is_file_input = type.toLowerCase() === 'file'
+
+      const input = form.querySelector(`input[name="${name}"]`),
             input_container = input.parentNode,
             error_text = input_container.querySelector('.input-error-msg')
 
-      const validate_promise = spec.validate
+      if (is_file_input &&
+          validate !== undefined &&
+          validate.meta === undefined &&
+          validate.contents === undefined)
+        throw new Error('file input validator must be an Object with keys "meta" and/or "contents"')
+
+      const wrap_validator = (validator_obj, for_file) => {
+        if (for_file) {
+          const { meta: meta_obj, contents: contents_obj } = validator_obj
+
+          const meta = meta_obj !== undefined ?
+            wrap_validator(meta_obj, false) : undefined
+
+          const contents = contents_obj !== undefined ?
+            wrap_validator(contents_obj, false) : undefined
+
+          return async file_list => {
+            for (let fli = file_list.length - 1; fli >= 0; --fli) {
+              const file = file_list[fli]
+              if (meta !== undefined)
+                await meta(meta_obj.isJoi ? file2obj(file) : file)
+              if (contents !== undefined) await contents(file)
+            }
+
+            return ''
+          }
+
+        }
+
+        if (validator_obj.isJoi) {
+          return async value => {
+            try {
+              return await validator_obj.validate(value)
+            } catch(err) {
+              console.log('err', err)
+              // https://github.com/hapijs/joi/blob/v13.0.1/API.md#errors
+              if (err.name === 'ValidationError')
+                throw new Error(err.details[0].message.replace('"value" ', ''))
+
+              if (err.message !== undefined && err.message !== '')
+                throw err
+
+              throw new Error('Unknown Error')
+            }
+          }
+        }
+
+        if (typeof validator_obj === 'function')
+          return validator_obj
+
+        throw new Error(`${name}.validate needs to be a Joi validator or a function`)
+      }
+
+      const validator = wrap_validator(validate, is_file_input)
 
       const val_func = async () => {
         /*
@@ -29,10 +85,11 @@ function apply_validation(form, schema, {
         throws error if input error
         */
         try {
-          const int_value = input.value
-          const val_value = await validate_promise.validate(int_value)
+          const value = is_file_input ? input.files : input.value
+          const val_value = await validator(value)
 
-          if (int_value !== val_value) {
+          if (value !== val_value && !is_file_input) {
+            /* set the cursor positon */
             const { selectionStart, selectionEnd } = input
 
             input.value = val_value
@@ -46,22 +103,26 @@ function apply_validation(form, schema, {
           input.classList.remove('input-error')
           error_text.innerHTML = ''
           input.dispatchEvent(new Event('valid'))
+
           return true
+
         } catch (err) {
-          error_text.innerHTML = err.name === 'ValidationError' ?
-            err.details[0].message.replace('"value" ', '') :
-            'Unknown Error'  // https://github.com/hapijs/joi/blob/v13.0.1/API.md#errors
+          error_text.innerHTML = err.message
 
           input.classList.add('input-error')
           input.dispatchEvent(new Event('invalid'))
+
           return false
         }
       }
 
-      Sequence(input)
-        .once('blur', val_func)
-        .repeat('keyup', val_func)
-        .whenever('submit', form).restart()
+      if (is_file_input) input.addEventListener('change', val_func)
+      else {
+        Sequence(input)
+          .once('blur', val_func)
+          .repeat('keyup', val_func)
+          .whenever('submit', form).restart()
+      }
 
       return val_func
     })
@@ -86,35 +147,20 @@ function apply_validation(form, schema, {
   return form
 }
 
-// const xhr = new window.XMLHttpRequest()
-// xhr.open('post', `/$`)
-// xhr.onreadystatechange(() => {
-//   if (xhr.readyState === window.XMLHttpRequest.DONE) {
-//     console.log('xhr.status', xhr.status)
-//     if (status(xhr).is(/2../)) 'hi'
-//   }
-// })
-// function status(xhr) {
-//   return {
-//     is(selector) {
-//       // const xhr_status = String(xhr.status)
 
-//       // let matched
-//       // try {
-//       //   matched = selector.exec(xhr_status)
-//       // } catch(err) {
-//       //   throw new Error(`xhr_status: ${xhr_status}`)
-//       // }
-
-//       // if (matched === null) return false
-
-//       // if (matched[0] !== xhr_status)
-//       //   throw new Error(`regex selector ${selector} matched "${matched[0]}" not the whole xhr.status "${xhr_status}"`)
-
-//       return true
-//     },
-//   }
-// }
+function file2obj(file) {
+  /* puts all File properties into an object */
+  return Object.freeze({
+    /*eslint-disable key-spacing */
+    lastModified:       file.lastModified,
+    lastModifiedDate:   file.lastModifiedDate,
+    name:               file.name,
+    webkitRelativePath: file.webkitRelativePath,
+    size:               file.size,
+    type:               file.type,
+    /*eslint-enable key-spacing */
+  })
+}
 
 
 module.exports = apply_validation

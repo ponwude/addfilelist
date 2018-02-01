@@ -1,25 +1,105 @@
 /*eslint-disable no-console, no-unused-vars */
-/*global describe, it, beforeEach, afterEach, process */
+/*global Joi, describe, it, beforeEach, afterEach, process, __dirname */
+
+const path = require('path')
 
 Joi = require('joi-browser') //eslint-disable-line no-global-assign, no-undef
 
 const { JSDOM } = require('jsdom')
 
-const apply_validation = require('../apply_validation.js') // testing
-
-const form_builder = require('../form_builder.js')
+const _ = require('lodash')
 
 const chai = require('chai')
 chai.use(require('chai-dom'))
 chai.use(require('sinon-chai'))
+chai.use(require('chai-as-promised'))
 chai.should()
+const { expect } = chai
 
 const sinon = require('sinon')
 
-require('./unhandled.js')
+const apply_validation = require('../apply_validation.js') // testing
+const form_builder = require('../form_builder.js')
 
 const while_monitoring = require('./while_monitoring.js')
 const { set_val } = require('./support_test_functions.js')
+const { addFileList } = require('./addFileList.js')
+require('./unhandled.js')
+
+
+async function load_dom(schema) {
+  const dom = new JSDOM(
+    `
+      <!DOCTYPE html>
+      <body></body>
+      <script>
+        window.isloaded = true
+        if (window.check_page_load !== undefined)
+          window.check_page_load()
+      </script>
+    `,
+    {
+      runScripts: 'dangerously',
+      resources: 'usable',
+    }
+  )
+
+  window = dom.window //eslint-disable-line no-global-assign, prefer-destructuring
+  document = window.window.document //eslint-disable-line no-global-assign, prefer-destructuring
+  Event = window.Event //eslint-disable-line no-global-assign, prefer-destructuring
+
+  set_val.Event = Event
+  while_monitoring.Event = Event
+
+  set_val.Event = Event
+  while_monitoring.Event = Event
+
+  form_builder.document = document
+  let form = form_builder(schema)
+  document.body.appendChild(form)
+  form = apply_validation(form, schema)
+
+  const inputs = _.keyBy(
+    form.querySelectorAll('input:not([type=submit])'),
+    'name'
+  )
+  Object.keys(inputs).should.have.lengthOf(schema.length)
+
+  const error_msgs = _.fromPairs(_.zip(
+    _.map(schema, 'name'),
+    form.querySelectorAll('.input-error-msg')
+  ))
+  Object.keys(error_msgs).should.have.lengthOf(schema.length)
+
+  // wait for page load
+  await new Promise((resolve, reject) => {
+    if (window.isloaded === true) resolve()
+    else {
+      window.check_page_load = resolve
+
+      setTimeout(() => reject(new Error('page did not load')), 100)
+    }
+  })
+
+  return { dom, window, document, Event, form, inputs, error_msgs }
+}
+
+
+describe('schema errors', function() {
+  const schemas = {
+    bad_validate: [
+      {
+        name: 'bad_validate',
+        validate: 'not a Joi object or a function',
+      },
+    ],
+  }
+
+  it('throw error when validate is wrong', function() {
+    return expect( load_dom(schemas.bad_validate) )
+      .to.be.rejectedWith('bad_validate.validate needs to be a Joi validator or a function')
+  })
+})
 
 
 describe('Test how the validation methods are applied.', function() {
@@ -29,16 +109,16 @@ describe('Test how the validation methods are applied.', function() {
   const schema = [
     {
       name: 'input_0',
-      validate: Joi.string().alphanum(), //eslint-disable-line no-undef
+      validate: Joi.string().alphanum(),
     },
     {
       name: 'input_1',
-      validate: Joi.number(), //eslint-disable-line no-undef
+      validate: Joi.number(),
     },
     {
       // will modify the value
       name: 'input_2',
-      validate: Joi.string().lowercase().allow(''), //eslint-disable-line no-undef
+      validate: Joi.string().lowercase().allow(''),
     },
   ]
 
@@ -51,33 +131,7 @@ describe('Test how the validation methods are applied.', function() {
   beforeEach(async function() {
     /* Re-initialize the page before each test */
 
-    const dom = new JSDOM(
-      `
-        <!DOCTYPE html>
-        <body></body>
-        <script>
-          window.isloaded = true
-          if (window.check_page_load !== undefined)
-            window.check_page_load()
-        </script>
-      `,
-      {
-        runScripts: 'dangerously',
-        resources: 'usable',
-      }
-    )
-    window = dom.window //eslint-disable-line no-global-assign, prefer-destructuring
-    document = window.window.document //eslint-disable-line no-global-assign, prefer-destructuring
-    // console.log('window.XMLHttpRequest', window.XMLHttpRequest)
-    Event = window.Event //eslint-disable-line no-global-assign, prefer-destructuring
-
-    set_val.Event = Event
-    while_monitoring.Event = Event
-
-    form_builder.document = document
-    let form = form_builder(schema)
-    document.body.appendChild(form)
-    form = apply_validation(form, schema)
+    const { dom, window, document, Event, form } = await load_dom(schema)
 
     const [input_0, input_1, input_2, submit] = form.querySelectorAll('input')
     const [error_msg_0, error_msg_1, error_msg_2] = form.querySelectorAll('.input-error-msg')
@@ -105,16 +159,6 @@ describe('Test how the validation methods are applied.', function() {
         input_1.value = input_1_vals.bad
         input_2.value = input_2_vals.bad
       },
-    })
-
-    // wait for page load
-    await new Promise((resolve, reject) => {
-      if (window.isloaded === true) resolve()
-      else {
-        window.check_page_load = resolve
-
-        setTimeout(() => reject(new Error('page did not load')), 100)
-      }
     })
   })
 
@@ -393,4 +437,372 @@ describe('Test how the validation methods are applied.', function() {
       input_2.selectionEnd.should.equal(cursor_position)
     })
   })
+
 })
+
+describe('validate can be non-joi functions', function() {
+  const schema = [
+    {
+      name: 'sync_no_change',
+      validate(value) {
+        if (value !== '3') throw new Error('must be 3')
+        return '3'
+      },
+      good_value: '3',
+      result_value: '3',
+      bad_value: 'bad',
+      err_msg: 'must be 3',
+    },
+    {
+      name: 'sync_change',
+      validate(value) {
+        if (value !== '4') throw new Error('must be 4')
+        return '5' // should return 5 not 4
+      },
+      good_value: '4',
+      result_value: '5',
+      bad_value: 'bad',
+      err_msg: 'must be 4',
+    },
+    {
+      name: 'async_no_change',
+      validate(value) {return new Promise((resolve, reject) => {
+        if (value !== '6') reject(new Error('must be 6')) //eslint-disable-line eqeqeq
+        else resolve('6')
+      })},
+      good_value: '6',
+      result_value: '6',
+      bad_value: 'bad',
+      err_msg: 'must be 6',
+    },
+    {
+      name: 'async_change',
+      validate(value) {return new Promise((resolve, reject) => {
+        if (value != '7') reject('must be 7') //eslint-disable-line eqeqeq
+        else resolve('8') // should resolve with 8
+      })},
+      good_value: '7',
+      result_value: '8',
+      bad_value: 'bad',
+      err_msg: 'must be 7',
+    },
+  ]
+
+  const schema_lookup = _.keyBy(schema, 'name')
+
+  const elements = {}
+
+  beforeEach(async function() {
+    Object.assign(elements, await load_dom(schema))
+    set_val.Event = elements.Event
+  })
+
+  describe('valid on good_value', function() {
+    it('sync', function() {
+      const input = elements.inputs.sync_no_change
+      const { good_value } = schema_lookup.sync_no_change
+
+      return set_val(input, good_value, {resolve_events: 'valid'} )
+    })
+
+    it('async', function() {
+      const input = elements.inputs.async_no_change
+      const { good_value } = schema_lookup.async_no_change
+
+      return set_val(input, good_value, {resolve_events: 'valid'} )
+    })
+  })
+
+  describe('no error message on good_value', function() {
+    it('sync', async function() {
+      const input = elements.inputs.sync_no_change,
+            error_msg_element = elements.error_msgs.sync_no_change
+      const { good_value } = schema_lookup.sync_no_change
+
+      await set_val(input, good_value)
+
+      error_msg_element.should.have.text('')
+    })
+
+    it('async', async function() {
+      const input = elements.inputs.async_no_change,
+            error_msg_element = elements.error_msgs.async_no_change
+      const { good_value } = schema_lookup.async_no_change
+
+      await set_val(input, good_value)
+
+      error_msg_element.should.have.text('')
+    })
+  })
+
+  describe('invalid on bad_value', function() {
+    it('sync', function() {
+      const input = elements.inputs.sync_no_change
+      const { bad_value } = schema_lookup.sync_no_change
+
+      return set_val(input, bad_value, {resolve_events: 'invalid'} )
+    })
+
+    it('async', function() {
+      const input = elements.inputs.async_no_change
+      const { bad_value } = schema_lookup.async_no_change
+
+      return set_val(input, bad_value, {resolve_events: 'invalid'} )
+    })
+  })
+
+  describe('correct error message on bad_value', function() {
+    it('sync', async function() {
+      const input = elements.inputs.sync_no_change,
+            error_msg_element = elements.error_msgs.sync_no_change
+      const { bad_value, err_msg } = schema_lookup.sync_no_change
+
+      await set_val(input, bad_value)
+
+      error_msg_element.should.have.text(err_msg)
+    })
+
+    it('async', async function() {
+      const input = elements.inputs.async_no_change,
+            error_msg_element = elements.error_msgs.async_no_change
+      const { bad_value, err_msg } = schema_lookup.async_no_change
+
+      await set_val(input, bad_value)
+
+      error_msg_element.should.have.text(err_msg)
+    })
+  })
+
+  describe('value changed to correct', function() {
+    it('sync no value change', async function() {
+      const input = elements.inputs.sync_no_change
+      const { good_value } = schema_lookup.sync_no_change
+
+      await set_val(input, good_value)
+
+      input.should.have.value(good_value)
+    })
+
+    it('async no value change', async function() {
+      const input = elements.inputs.async_no_change
+      const { good_value } = schema_lookup.async_no_change
+
+      await set_val(input, good_value)
+
+      input.should.have.value(good_value)
+    })
+
+    it('sync value change', async function() {
+      const input = elements.inputs.sync_change
+      const { good_value, result_value } = schema_lookup.sync_change
+
+      await set_val(input, good_value)
+
+      input.should.have.value(result_value)
+    })
+
+    it('async value change', async function() {
+      const input = elements.inputs.async_change
+      const { good_value, result_value } = schema_lookup.async_change
+
+      await set_val(input, good_value)
+
+      input.should.have.value(result_value)
+    })
+  })
+})
+
+describe('file type inputs are validated', function() {
+  // const elements = {}
+
+  // const schema = [
+  //   {
+  //     name: 'file_meta',
+  //     attr: {type: 'file'},
+  //     validate: {
+  //       meta: Joi.object().keys({
+  //         size: Joi.number().less(100),
+  //       }),
+  //     },
+  //     good_file: 'test_apply_validation_files/file_meta.text',
+  //     bad_file: 'test_apply_validation_files/file_meta.bad',
+  //   },
+  //   // {
+  //   //   name: 'file_contents',
+  //   //   attr: {type: 'file'},
+  //   //   validate: {
+  //   //     contents: ,
+  //   //   },
+  //   //   good_file: 'test_apply_validation_files/file_contents.text',
+  //   //   bad_file: 'test_apply_validation_files/file_contents.bad',
+  //   // },
+  //   // {
+  //   //   name: 'file_meta_contents',
+  //   //   attr: {type: 'file'},
+  //   //   validate: {
+  //   //     meta: ,
+  //   //     contents: ,
+  //   //   },
+  //   //   good_file: 'test_apply_validation_files/file_meta_contents.text',
+  //   //   bad_file: 'test_apply_validation_files/file_meta_contents.bad',
+  //   // },
+  // ]
+
+  // let all_good, all_bad
+
+  // beforeEach(async function() {
+  //   const { dom, window, document, Event, form } = await load_dom(schema)
+
+  //   const inputs = form.querySelectorAll('input[type=file]')
+  //   const error_msgs = form.querySelectorAll('.input-error-msg')
+  //   inputs.should.have.lengthOf(schema.length)
+  //   error_msgs.should.have.lengthOf(schema.length)
+
+  //   Object.assign(elements, {
+  //     dom,
+  //     window,
+  //     document,
+  //     Event,
+  //     form,
+  //   })
+
+  //   all_good = () => {
+  //     schema.forEach(({name, good_file}) => {
+  //       const input = form.querySelector(`input[name=${name}`)
+  //       addFileList(input, good_file)
+  //     })
+  //   }
+
+  //   all_bad = () => {
+  //     schema.forEach(({name, bad_file}) => {
+  //       const input = form.querySelector(`input[name=${name}`)
+  //       addFileList(input, bad_file)
+  //     })
+  //   }
+  // })
+
+  describe('schema checks when input.type="file"', function() {
+    it('validate can be undefined', function() {
+      return load_dom([{
+        name: 'validate undefined',
+        attr: {type: 'file'},
+      }])
+    })
+
+    it('validate cannot be a function', function() {
+      return expect(load_dom([{
+        name: 'validate function',
+        attr: {type: 'FILE'},
+        validate() {},
+      }])).to.be.rejectedWith('file input validator must be an Object with keys "meta" and/or "contents"')
+    })
+
+    it('when validate is an Object it must have "meta" and/or "contents" defined', function() {
+      return expect(load_dom([{
+        name: 'validate function',
+        attr: {type: 'FILE'},
+        validate: {},
+      }])).to.be.rejectedWith('file input validator must be an Object with keys "meta" and/or "contents"')
+    })
+  })
+
+  describe('check file meta data', function() {
+
+    const resolve_path = file_name => path.join(
+      __dirname,
+      'test_apply_validation_files',
+      file_name
+    )
+
+    const load_file_input = async (validate, file_names) => {
+      const name = 'input_name'
+      const { inputs, error_msgs } = await load_dom([{
+        name,
+        attr: {type: 'file'},
+        validate,
+      }])
+
+      const input = inputs[name],
+            error_msg = error_msgs[name]
+
+      if (!Array.isArray(file_names)) file_names = [file_names]
+      addFileList(input, file_names.map(resolve_path))
+
+      return {input, error_msg}
+    }
+
+    describe('error if meta contains an invalid value', function() {
+      describe('file to large', function() {
+        it.only('joi', async function() {
+          const joi_meta_validator = Joi.object().keys({
+            size: Joi.number().max(-1),
+          })
+
+          const { input, error_msg } = await load_file_input(
+            {meta: joi_meta_validator},
+            'file_too_large.txt',
+          )
+
+          await while_monitoring(input).expect('invalid').upon_event('change')
+          error_msg.should.have.text('file too large')
+        })
+
+        it('sync function', async function() {
+          const error_text = 'file to large sync'
+          const sync_meta_validator = file => {throw new Error(error_text)}
+
+          const { input, error_msg } = await load_file_input(
+            {meta: sync_meta_validator},
+            'file_too_large.txt'
+          )
+
+          await while_monitoring(input).expect('invalid').upon_event('change')
+          error_msg.should.have.text(error_text)
+        })
+
+        it('async function', async function() {
+          const error_text = 'file too large async'
+          const async_meta_validator = file => {
+            return new Promise((resolve, reject) => {
+              reject(new Error(error_text))
+            })
+          }
+
+          const { input, error_msg } = await load_file_input(
+            {meta: async_meta_validator},
+            'file_too_large.txt'
+          )
+
+          await while_monitoring(input).expect('invalid').upon_event('change')
+          error_msg.should.have.text(error_text)
+        })
+      })
+
+      it('incorrect name (function)')
+    })
+
+    describe('no error if all meta is correct', function() {})
+    describe('validator cannot modify meta value', function() {})
+    it('no error if validation not defined for every meta propery (Joi only)')
+    it('checks all files when input.files has more than one file')
+    it('validator is a async function')
+  })
+
+  describe('check file contents', function() {
+    it('for substring and find it (no error)')
+    it('for substring and does not find it (error throw)')
+    it('checks all files when input.files has more than one file')
+    it('validator is a async function')
+  })
+})
+
+
+
+
+
+
+
+
+
+
+
