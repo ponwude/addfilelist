@@ -451,7 +451,7 @@ describe('validate can be non-joi functions', function() {
       good_value: '3',
       result_value: '3',
       bad_value: 'bad',
-      err_msg: 'must be 3',
+      error_msg: 'must be 3',
     },
     {
       name: 'sync_change',
@@ -462,7 +462,7 @@ describe('validate can be non-joi functions', function() {
       good_value: '4',
       result_value: '5',
       bad_value: 'bad',
-      err_msg: 'must be 4',
+      error_msg: 'must be 4',
     },
     {
       name: 'async_no_change',
@@ -473,7 +473,7 @@ describe('validate can be non-joi functions', function() {
       good_value: '6',
       result_value: '6',
       bad_value: 'bad',
-      err_msg: 'must be 6',
+      error_msg: 'must be 6',
     },
     {
       name: 'async_change',
@@ -484,7 +484,7 @@ describe('validate can be non-joi functions', function() {
       good_value: '7',
       result_value: '8',
       bad_value: 'bad',
-      err_msg: 'must be 7',
+      error_msg: 'must be 7',
     },
   ]
 
@@ -555,21 +555,21 @@ describe('validate can be non-joi functions', function() {
     it('sync', async function() {
       const input = elements.inputs.sync_no_change,
             error_msg_element = elements.error_msgs.sync_no_change
-      const { bad_value, err_msg } = schema_lookup.sync_no_change
+      const { bad_value, error_msg } = schema_lookup.sync_no_change
 
       await set_val(input, bad_value)
 
-      error_msg_element.should.have.text(err_msg)
+      error_msg_element.should.have.text(error_msg)
     })
 
     it('async', async function() {
       const input = elements.inputs.async_no_change,
             error_msg_element = elements.error_msgs.async_no_change
-      const { bad_value, err_msg } = schema_lookup.async_no_change
+      const { bad_value, error_msg } = schema_lookup.async_no_change
 
       await set_val(input, bad_value)
 
-      error_msg_element.should.have.text(err_msg)
+      error_msg_element.should.have.text(error_msg)
     })
   })
 
@@ -706,34 +706,84 @@ describe('file type inputs are validated', function() {
     })
   })
 
+  const resolve_path = file_name => path.join(
+    __dirname,
+    'test_apply_validation_files',
+    file_name
+  )
+
+  const load_file_input = async (validate, file_names) => {
+    const name = 'input_name'
+    const { inputs, error_msgs, window } = await load_dom([{
+      name,
+      attr: {type: 'file'},
+      validate,
+    }])
+
+    const input = inputs[name],
+          error_msg = error_msgs[name]
+
+    if (!Array.isArray(file_names)) file_names = [file_names]
+    addFileList(input, file_names.map(resolve_path))
+
+    return {input, error_msg, window}
+  }
+
   describe('check file meta data', function() {
+    describe('is called with a File argument', function() {
+      it('joi', async function() {
+        const joi_meta_validator = Joi.object().keys({
+          type: Joi.string(),
+        })
+        const spy_validate = sinon.spy(joi_meta_validator, 'validate')
 
-    const resolve_path = file_name => path.join(
-      __dirname,
-      'test_apply_validation_files',
-      file_name
-    )
+        const { input } = await load_file_input(
+          {meta: joi_meta_validator},
+          ['file_too_large.txt', 'other.txt']
+        )
 
-    const load_file_input = async (validate, file_names) => {
-      const name = 'input_name'
-      const { inputs, error_msgs } = await load_dom([{
-        name,
-        attr: {type: 'file'},
-        validate,
-      }])
+        await while_monitoring(input).expect('valid').upon_event('change')
 
-      const input = inputs[name],
-            error_msg = error_msgs[name]
+        spy_validate.should.have.been.calledTwice
+        spy_validate.args[0].should.have.lengthOf(2)
 
-      if (!Array.isArray(file_names)) file_names = [file_names]
-      addFileList(input, file_names.map(resolve_path))
+        const [[ file_obj ]] = spy_validate.args
+        file_obj.should.be.instanceof(Object)
+        file_obj.should.have.all.keys(
+          'lastModified',
+          'lastModifiedDate',
+          'name',
+          'webkitRelativePath',
+          'size',
+          'type',
+        )
 
-      return {input, error_msg}
-    }
+        const [[ ,options ]] = spy_validate.args
+        options.should.eql({allowUnknown: true})
+      })
+
+      it('function', async function() {
+        const error_text = 'file to large sync'
+        const sync_meta_validator = sinon.spy()
+
+        const { window, input } = await load_file_input(
+          {meta: sync_meta_validator},
+          ['file_too_large.txt', 'other.txt']
+        )
+
+        await while_monitoring(input).expect('valid').upon_event('change')
+
+        sync_meta_validator.should.have.been.calledTwice
+        sync_meta_validator.args[0].should.have.lengthOf(1)
+        sync_meta_validator.args[0][0].toString()
+          .should.be.equal('[object File]')
+      })
+
+    })
 
     describe('error if meta contains an invalid value', function() {
       describe('file to large', function() {
-        it.only('joi', async function() {
+        it('joi', async function() {
           const joi_meta_validator = Joi.object().keys({
             size: Joi.number().max(-1),
           })
@@ -744,7 +794,7 @@ describe('file type inputs are validated', function() {
           )
 
           await while_monitoring(input).expect('invalid').upon_event('change')
-          error_msg.should.have.text('file too large')
+          error_msg.should.have.text('"size" must be less than or equal to -1')
         })
 
         it('sync function', async function() {
@@ -778,21 +828,203 @@ describe('file type inputs are validated', function() {
         })
       })
 
-      it('incorrect name (function)')
+      it('multiple meta errors with Joi validator')
     })
 
-    describe('no error if all meta is correct', function() {})
-    describe('validator cannot modify meta value', function() {})
-    it('no error if validation not defined for every meta propery (Joi only)')
+    describe('no error if all meta is correct', function() {
+      it('joi', async function() {
+        const joi_meta_validator = Joi.object().keys({
+          name: Joi.string().min(1),
+        })
+
+        const { input, error_msg } = await load_file_input(
+          {meta: joi_meta_validator},
+          'file_too_large.txt'
+        )
+
+        await while_monitoring(input).expect('valid').upon_event('change')
+        error_msg.should.have.text('')
+      })
+
+      it('sync function', async function() {
+        const sync_meta_validator = () => {}
+
+        const { input, error_msg } = await load_file_input(
+          {meta: sync_meta_validator},
+          'file_too_large.txt'
+        )
+
+        await while_monitoring(input).expect('valid').upon_event('change')
+        error_msg.should.have.text('')
+      })
+
+      it('async function', async function() {
+        const async_meta_validator = () => new Promise(resolve => resolve())
+
+        const { input, error_msg } = await load_file_input(
+          {meta: async_meta_validator},
+          'file_too_large.txt'
+        )
+
+        await while_monitoring(input).expect('valid').upon_event('change')
+        error_msg.should.have.text('')
+      })
+    })
+
+    describe('checks all files when input.files has more than one file', function() {
+      it('forward', async function() {
+        const correct_file_name = 'file_too_large.txt'
+        const error_text = 'forward err'
+        const validator = file => {
+          if (file.name !== correct_file_name)
+            throw new Error(error_text)
+        }
+
+        const { input, error_msg } = await load_file_input(
+          {meta: validator},
+          ['file_too_large.txt', 'other.txt']
+        )
+
+        await while_monitoring(input).expect('invalid').upon_event('change')
+        error_msg.should.have.text(error_text)
+      })
+
+      it('backward', async function() {
+        const correct_file_name = 'file_too_large.txt'
+        const error_text = 'backward err'
+        const validator = file => {
+          if (file.name !== correct_file_name)
+            throw new Error(error_text)
+        }
+
+        const { input, error_msg } = await load_file_input(
+          {meta: validator},
+          ['other.txt', 'file_too_large.txt']
+        )
+
+        await while_monitoring(input).expect('invalid').upon_event('change')
+        error_msg.should.have.text(error_text)
+      })
+    })
+  })
+
+  describe('check file contents', function() {
+    it('Joi validation not yet supported for file contents', function() {
+      const load_promise = load_file_input(
+        {contents: Joi.string()},
+        'other.txt'
+      )
+
+      return expect( load_promise )
+        .to.be.rejectedWith('Joi validation not yet supported for file contents')
+    })
+
+    describe('called with FileReader argument', function() {
+      it('Joi') // Joi validation not yet supported for file contents
+
+      it('function', async function() {
+        const validator = sinon.spy()
+        const { input, error_msg } = await load_file_input(
+          {contents: validator},
+          ['file_too_large.txt', 'other.txt']
+        )
+        await while_monitoring(input).expect('valid').upon_event('change')
+
+        validator.should.have.been.calledTwice
+        validator.args[0].should.have.lengthOf(1)
+        validator.args[0][0].should.be.instanceof(window.FileReader)
+      })
+    })
+
+    describe('no error', function() {
+
+      // Joi validation not yet supported for file contents
+      it('Joi, check for substring and find it')//, async function() {
+      //   const joi_validator = Joi.string().regex(/123/, 'find 123')
+
+      //   const { input, error_msg } = await load_file_input(
+      //     {contents: joi_validator},
+      //     'digets.txt'
+      //   )
+
+      //   await while_monitoring(input).expect('valid').upon_event('change')
+      //   error_msg.should.have.text('')
+      // })
+
+      it('sync function', async function() {
+        const sync_validator = sinon.spy()
+        const { input, error_msg } = await load_file_input(
+          {contents: sync_validator},
+          'digets.txt'
+        )
+
+        await while_monitoring(input).expect('valid').upon_event('change')
+        error_msg.should.have.text('')
+      })
+
+      it('async function', async function() {
+        const async_validator = sinon.spy(
+          file_reader => new Promise(resolve => resolve())
+        )
+        const { input, error_msg } = await load_file_input(
+          {contents: async_validator},
+          'digets.txt'
+        )
+
+        await while_monitoring(input).expect('valid').upon_event('change')
+        error_msg.should.have.text('')
+      })
+    })
+
+    describe('error throw', function() {
+      // it('Joi, check for substring and not find it', async function() {
+      //   // const joi_validator = Joi.string().regex(/123/, 'find 123')
+      //   const joi_validator = Joi.binary().regex(/123/, 'find 123')
+
+      //   const { input, error_msg } = await load_file_input(
+      //     {contents: joi_validator},
+      //     'digets.txt'
+      //   )
+
+      //   await while_monitoring(input).expect('invalid').upon_event('change')
+      //   error_msg.should.have.text('error_text')
+      // })
+
+      it('sync function', async function() {
+        const error_text = 'sync error text'
+        const sync_validator = sinon.spy(
+          file_contents => {throw new Error(error_text)}
+        )
+        const { input, error_msg } = await load_file_input(
+          {contents: sync_validator},
+          'digets.txt'
+        )
+
+        await while_monitoring(input).expect('invalid').upon_event('change')
+        error_msg.should.have.text(error_text)
+      })
+
+      it('async function', async function() {
+        const error_text = 'async error text'
+        const async_validator = file_contents => {throw new Error(error_text)}
+        const { input, error_msg } = await load_file_input(
+          {contents: async_validator},
+          'digets.txt'
+        )
+
+        await while_monitoring(input).expect('invalid').upon_event('change')
+        error_msg.should.have.text(error_text)
+      })
+    })
+
     it('checks all files when input.files has more than one file')
     it('validator is a async function')
   })
 
-  describe('check file contents', function() {
-    it('for substring and find it (no error)')
-    it('for substring and does not find it (error throw)')
-    it('checks all files when input.files has more than one file')
-    it('validator is a async function')
+  describe('check meta and contents', function() {
+    it('no errors')
+    it('error in meta')
+    it('error in contents')
   })
 })
 

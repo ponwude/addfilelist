@@ -36,6 +36,8 @@ function apply_validation(form, schema, {
           const meta = meta_obj !== undefined ?
             wrap_validator(meta_obj, false) : undefined
 
+          if (contents_obj !== undefined && contents_obj.isJoi)
+            throw new Error('Joi validation not yet supported for file contents')
           const contents = contents_obj !== undefined ?
             wrap_validator(contents_obj, false) : undefined
 
@@ -44,7 +46,8 @@ function apply_validation(form, schema, {
               const file = file_list[fli]
               if (meta !== undefined)
                 await meta(meta_obj.isJoi ? file2obj(file) : file)
-              if (contents !== undefined) await contents(file)
+              if (contents !== undefined)
+                await contents(file)
             }
 
             return ''
@@ -55,9 +58,10 @@ function apply_validation(form, schema, {
         if (validator_obj.isJoi) {
           return async value => {
             try {
-              return await validator_obj.validate(value)
+              return await validator_obj.validate(value, {
+                allowUnknown: is_file_input,
+              })
             } catch(err) {
-              console.log('err', err)
               // https://github.com/hapijs/joi/blob/v13.0.1/API.md#errors
               if (err.name === 'ValidationError')
                 throw new Error(err.details[0].message.replace('"value" ', ''))
