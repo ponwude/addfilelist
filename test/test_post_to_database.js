@@ -1,6 +1,8 @@
 /*eslint-disable no-unused-vars, no-console */
 /*global __dirname, describe, context, it, before, beforeEach, after, afterEach */
 
+const post_to_database = require('../post_to_database.js')
+
 const path = require('path')
 
 const combineErrors = require('combine-errors')
@@ -18,7 +20,6 @@ const KNEX = require('knex')
 
 const _ = require('lodash')
 
-const post_to_database = require('../post_to_database.js')
 const schema_dir = path.join(__dirname, 'form_schemas')
 const schema_path = path.join(schema_dir, 'form_test_schema.js')
 const schema = require(schema_path)
@@ -202,182 +203,99 @@ context('fresh database', function() {
     })
   })
 
-  context('can make requests to the post_to_database handler', function() {
-
-    let request
-    beforeEach(async function() {
-      new_database()
-
-      const app = express()
-      try {
-        app.use('/', await post_to_database(knex_db, schema_path))
-      } catch(err) {
-        throw combineErrors([new Error('Problem creating app'), err])
-      }
-      app.use(function(req, res) {
-        res.status(500)
-        res.send('was not caught by routes')
-      })
-      app.use(function(err, req, res, next) {
-        // render the error page
-        res.status(err.status || 500)
-        res.send('error')
-      })
-
-      request = supertest(app)
-    })
-
-    afterEach(destroy_database)
-
-    describe('catch validation errors', function() {
-      it('Content-Type is wrong and res.body is undefined', function() {
-        const post_to = 'form0'
-
-        return request
-          .post('/' + post_to)
-          .timeout({
-            response: 100,
-            deadline: 200,
-          })
-          .type('json')
-          .send({input0: 'goodVal'}) // this has to be send
-          .expect(400, 'Wrong Content-Type of "application/json"" when expecting "multipart/form-data"')
-      })
-
-      it('has extra input fields', function() {
-        const post_to = 'form0'
-
-        return request
-          .post('/' + post_to)
-          .field({
-            input0: 'hi there',
-            bad_field: 'bad_field',
-            bad_field_2: 'bad_field_2',
-          })
-          .expect(400, 'Unexpected body fields: bad_field, bad_field_2')
-      })
-
-      it('missing required input fields', function() {
-        const post_to = 'form1'
-
-        return request
-          .post('/' + post_to)
-          .field({
-            input1: 'hi there',
-          })
-          .expect(400, 'Missing required body fields: input0, input2')
-      })
-
-      it('body cannot contain form_skip=true elements', function() {
-        const post_to = 'database_only'
-
-        return request
-          .post('/' + post_to)
-          .field({
-            db0: '',
-            db1: '',
-            input0: '',
-            input1: '',
-          })
-          .expect(400, 'Unexpected body fields: db0, db1')
-      })
-
-      it('multiple validation errors sent back', async function() {
-        const post_to = 'form2'
-
-        const { body } = await request
-          .post('/' + post_to)
-          .field({
-            input0: 'not a number',
-            input1: '1',
-            input2: '12',
-          })
-          .expect(400)
-
-        expect(body).to.eql({
-          input0: 'must only contain alpha-numeric characters',
-          input2: 'length must be at least 3 characters long',
-        })
-      })
-    })
-
-    describe('file validation', function() {
-      it('inserts file to database')
-      it('returns 400 error on file validation error')
-      it('empty file')
-    })
-
-    describe('database checks', function() {
-      it('when validation data is not put to database', async function() {
-        const post_to = 'form0'
-
-        await request
-          .post('/' + post_to)
-          .field({input0: '%%%'})
-          .expect('Content-Type', /json/)
-          .expect(400)
-
-        expect(await knex_db(post_to).select('input0'))
-          .to.have.lengthOf(0)
-      })
-
-      it('true returned when successfully put in database', async function() {
-        const { body } = await request
-          .post('/form0')
-          .field({input0: 'a'})
-          .expect('Content-Type', /json/)
-          .expect(200)
-
-        expect(body).to.be.true
-      })
-
-      it('data is put in database', async function() {
-        const post_to = 'form2'
-        const data = {
-          input0: 'alphanum',
-          input1: 1,
-          input2: 1234,
-        }
-
-        await request
-          .post('/' + post_to)
-          .field(data)
-          .expect('Content-Type', /json/)
-          .expect(200)
-
-        const table_rows = await knex_db(post_to).select('*')
-
-        expect(table_rows).to.have.lengthOf(1)
-
-        const [ row_data ] = table_rows
-        expect(row_data).to.eql(data)
-      })
-
-      it('data is cleaned before being put in database', async function() {
-        const post_to = 'form1'
-
-        await request
-          .post('/' + post_to)
-          .field({
-            input0: 123,
-            input1: 'HI THERE', // to lowercase
-            input2: 'again', // to uppercase
-          })
-          .expect('Content-Type', /json/)
-          .expect(200)
-
-        const [ row ] = await knex_db(post_to).select('*')
-        expect(row).to.eql({
-          input0: 123,
-          input1: 'hi there', // to lowercase
-          input2: 'AGAIN', // to uppercase
-        })
-      })
-    })
-
-  })
 })
 
 
-it('needs default security checks')
 
+describe('database checks', function() {
+
+  let request
+  beforeEach(async function() {
+
+    const app = express()
+    try {
+      app.use('/', await post_request_validator(schema))
+    } catch(err) {
+      throw combineErrors([new Error('Problem creating app'), err])
+    }
+    app.use(function(req, res) {
+      res.status(500)
+      res.send('was not caught by routes')
+    })
+    app.use(function(err, req, res, next) {
+      // render the error page
+      res.status(err.status || 500)
+      res.send('error')
+    })
+
+    request = supertest(app)
+  })
+
+  it('when validation data is not put to database', async function() {
+    const post_to = 'form0'
+
+    await request
+      .post('/' + post_to)
+      .field({input0: '%%%'})
+      .expect('Content-Type', /json/)
+      .expect(400)
+
+    expect(await knex_db(post_to).select('input0'))
+      .to.have.lengthOf(0)
+  })
+
+  it('true returned when successfully put in database', async function() {
+    const { body } = await request
+      .post('/form0')
+      .field({input0: 'a'})
+      .expect('Content-Type', /json/)
+      .expect(200)
+
+    expect(body).to.be.true
+  })
+
+  it('data is put in database', async function() {
+    const post_to = 'form2'
+    const data = {
+      input0: 'alphanum',
+      input1: 1,
+      input2: 1234,
+    }
+
+    await request
+      .post('/' + post_to)
+      .field(data)
+      .expect('Content-Type', /json/)
+      .expect(200)
+
+    const table_rows = await knex_db(post_to).select('*')
+
+    expect(table_rows).to.have.lengthOf(1)
+
+    const [ row_data ] = table_rows
+    expect(row_data).to.eql(data)
+  })
+
+  it('data is cleaned before being put in database', async function() {
+    const post_to = 'form1'
+
+    await request
+      .post('/' + post_to)
+      .field({
+        input0: 123,
+        input1: 'HI THERE', // to lowercase
+        input2: 'again', // to uppercase
+      })
+      .expect('Content-Type', /json/)
+      .expect(200)
+
+    const [ row ] = await knex_db(post_to).select('*')
+    expect(row).to.eql({
+      input0: 123,
+      input1: 'hi there', // to lowercase
+      input2: 'AGAIN', // to uppercase
+    })
+  })
+})
+
+it('inserts file to database')

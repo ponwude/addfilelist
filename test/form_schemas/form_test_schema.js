@@ -81,30 +81,32 @@ module.exports = {
       database_type: 'float',
     },
   ],
-  file_inputs: [
-    {
-      name: 'file_meta',
-      attr: {type: 'file'};
-      validate: {
-        meta: ,
-      },
-      database_type: 'string',
-    },
-    // {
-    //   name: 'file_contents',
-    //   attr: {type: 'file'};
-    //   validate: {
-    //     contents: ,
-    //   },
-    //   database_type: 'string',
-    // },
-    // {
-    //   name: 'file_meta_contents',
-    //   attr: {type: 'file'};
-    //   validate: {
-    //     meta: ,
-    //     contents: ,
-    //   }
-    // },
-  ],
+  // file_inputs: [
+  //   {
+  //     name: 'file_meta',
+  //     attr: {type: 'file'};
+  //     validate: {
+  //       meta: Joi.object().keys({
+  //         size: Joi.number().less(100),
+  //       }),
+  //     },
+  //     database_type: 'string',
+  //   },
+  //   // {
+  //   //   name: 'file_contents',
+  //   //   attr: {type: 'file'};
+  //   //   validate: {
+  //   //     contents: ,
+  //   //   },
+  //   //   database_type: 'string',
+  //   // },
+  //   // {
+  //   //   name: 'file_meta_contents',
+  //   //   attr: {type: 'file'};
+  //   //   validate: {
+  //   //     meta: ,
+  //   //     contents: ,
+  //   //   }
+  //   // },
+  // ],
 }

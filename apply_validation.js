@@ -23,48 +23,35 @@ function apply_validation(form, schema, {
             input_container = input.parentNode,
             error_text = input_container.querySelector('.input-error-msg')
 
-      if (is_file_input &&
-          validate !== undefined &&
-          validate.meta === undefined &&
-          validate.contents === undefined)
-        throw new Error('file input validator must be an Object with keys "meta" and/or "contents"')
+      const validator_wrapper = is_file_w => {
+        if (is_file_w) {
+          const single_validator = validator_wrapper(false)
 
-      const wrap_validator = (validator_obj, for_file) => {
-        if (for_file) {
-          const { meta: meta_obj, contents: contents_obj } = validator_obj
-
-          const meta = meta_obj !== undefined ?
-            wrap_validator(meta_obj, false) : undefined
-
-          if (contents_obj !== undefined && contents_obj.isJoi)
-            throw new Error('Joi validation not yet supported for file contents')
-          const contents = contents_obj !== undefined ?
-            wrap_validator(contents_obj, false) : undefined
-
-          return async file_list => {
-            for (let fli = file_list.length - 1; fli >= 0; --fli) {
-              const file = file_list[fli]
-              if (meta !== undefined)
-                await meta(meta_obj.isJoi ? file2obj(file) : file)
-              if (contents !== undefined)
-                await contents(file)
+          return async files => {
+            for (let fli = files.length - 1; fli >= 0; --fli) {
+              await single_validator(files[fli])
             }
-
-            return ''
           }
-
         }
 
-        if (validator_obj.isJoi) {
+        if (validate.isJoi) {
           return async value => {
             try {
-              return await validator_obj.validate(value, {
-                allowUnknown: is_file_input,
-              })
+              return await validate.validate(
+                is_file_input ? file2obj(value) : value,
+                {
+                  allowUnknown: is_file_input,
+                  abortEarly: !is_file_input,
+                }
+              )
             } catch(err) {
               // https://github.com/hapijs/joi/blob/v13.0.1/API.md#errors
               if (err.name === 'ValidationError')
-                throw new Error(err.details[0].message.replace('"value" ', ''))
+                // throw new Error(err.details[0].message.replace('"value" ', ''))
+                throw new Error(err.details
+                  .map(({message}) => message.replace('"value" ', ''))
+                  .join(', ')
+                )
 
               if (err.message !== undefined && err.message !== '')
                 throw err
@@ -74,13 +61,13 @@ function apply_validation(form, schema, {
           }
         }
 
-        if (typeof validator_obj === 'function')
-          return validator_obj
+        if (typeof validate === 'function')
+          return validate
 
         throw new Error(`${name}.validate needs to be a Joi validator or a function`)
       }
 
-      const validator = wrap_validator(validate, is_file_input)
+      const validator = validator_wrapper(is_file_input)
 
       const val_func = async () => {
         /*
