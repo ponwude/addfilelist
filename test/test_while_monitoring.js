@@ -310,7 +310,7 @@ describe('while_monitoring', function() {
 
         it('multiple events', async function() {
           const test_event = 'multiple dispatch test'
-          const dispatch = () => {
+          function dispatch() {
             multiple_event_types.forEach(event_type => {
               document.dispatchEvent(new Event(event_type))
             })
@@ -669,7 +669,7 @@ describe('while_monitoring', function() {
 
           // should list both events
           const test_event = 'multiple dispatch test'
-          const dispatch = () => {
+          function dispatch() {
             multiple_event_types.forEach(event_type => {
               document.dispatchEvent(new Event(event_type))
             })

@@ -161,7 +161,7 @@ context('run app', async function() {
     MockXMLHttpRequest.onCreate = undefined
   })
 
-  const load_page = async form_type => {
+  async function load_page(form_type) {
     let page_html = (await request.get('/' + form_type)).text
 
     const run_if_loaded_for_test = 'run_if_loaded_for_test'

@@ -52,7 +52,7 @@ function set_val(
 
     if (resolve_events.length > 0) {
       const els = resolve_events.reduce((els, event) => {
-        const listener = () => {
+        function listener() {
           els.forEach(el => input.removeEventListener(...el) )
           resolve(event)
         }

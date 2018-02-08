@@ -51,7 +51,7 @@ unhandled_events.forEach( e => process.on(e, handler) )
 
   const server = http.createServer(app)
 
-  const onError = function(error) {
+  function onError(error) {
     if (error.syscall !== 'listen') {
       throw error
     }

@@ -613,13 +613,15 @@ describe('validate can be non-joi functions', function() {
 })
 
 describe('file type inputs are validated', function() {
-  const resolve_path = file_name => path.join(
-    __dirname,
-    'test_apply_validation_files',
-    file_name
-  )
+  function resolve_path(file_name) {
+    return path.join(
+      __dirname,
+      'test_apply_validation_files',
+      file_name
+    )
+  }
 
-  const load_file_input = async (validate, file_names) => {
+  async function load_file_input(validate, file_names) {
     const name = 'input_name'
     const { inputs, error_msgs, window } = await load_dom([{
       name,
@@ -733,7 +735,7 @@ describe('file type inputs are validated', function() {
 
         it('sync function', async function() {
           const error_text = 'file to large sync'
-          const sync_meta_validator = file => {throw new Error(error_text)}
+          function sync_meta_validator(file) {throw new Error(error_text)}
 
           const { input, error_msg } = await load_file_input(
             sync_meta_validator,
@@ -746,7 +748,7 @@ describe('file type inputs are validated', function() {
 
         it('async function', async function() {
           const error_text = 'file too large async'
-          const async_meta_validator = file => {
+          function async_meta_validator(file) {
             return new Promise((resolve, reject) => {
               reject(new Error(error_text))
             })
@@ -800,7 +802,7 @@ describe('file type inputs are validated', function() {
       })
 
       it('sync function', async function() {
-        const sync_meta_validator = () => {}
+        function sync_meta_validator() {}
 
         const { input, error_msg } = await load_file_input(
           sync_meta_validator,
@@ -812,7 +814,7 @@ describe('file type inputs are validated', function() {
       })
 
       it('async function', async function() {
-        const async_meta_validator = () => new Promise(resolve => resolve())
+        function async_meta_validator() {return Promise.resolve()}
 
         const { input, error_msg } = await load_file_input(
           async_meta_validator,
@@ -828,7 +830,7 @@ describe('file type inputs are validated', function() {
       it('forward', async function() {
         const correct_file_name = 'file_too_large.txt'
         const error_text = 'forward err'
-        const validator = file => {
+        function validator(file) {
           if (file.name !== correct_file_name)
             throw new Error(error_text)
         }
@@ -845,7 +847,7 @@ describe('file type inputs are validated', function() {
       it('backward', async function() {
         const correct_file_name = 'file_too_large.txt'
         const error_text = 'backward err'
-        const validator = file => {
+        function validator(file) {
           if (file.name !== correct_file_name)
             throw new Error(error_text)
         }

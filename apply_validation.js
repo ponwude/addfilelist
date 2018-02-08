@@ -23,7 +23,7 @@ function apply_validation(form, schema, {
             input_container = input.parentNode,
             error_text = input_container.querySelector('.input-error-msg')
 
-      const validator_wrapper = is_file_w => {
+      function validator_wrapper(is_file_w) {
         if (is_file_w) {
           const single_validator = validator_wrapper(false)
 
@@ -61,15 +61,14 @@ function apply_validation(form, schema, {
           }
         }
 
-        if (typeof validate === 'function')
-          return validate
+        if (typeof validate === 'function') return validate
 
         throw new Error(`${name}.validate needs to be a Joi validator or a function`)
       }
 
       const validator = validator_wrapper(is_file_input)
 
-      const val_func = async () => {
+      async function val_func() {
         /*
         called when input should be checked
         displays errors after the input

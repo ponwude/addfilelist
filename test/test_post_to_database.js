@@ -29,7 +29,7 @@ context('fresh database', function() {
   this.timeout(200)
 
   let knex_db, db_destroyed = true
-  const new_database = async function() {
+  async function new_database() {
     if (db_destroyed) {
       knex_db = KNEX({
         client: 'sqlite3',
@@ -40,7 +40,7 @@ context('fresh database', function() {
       db_destroyed = false
     }
   }
-  const destroy_database = async function() {
+  async function destroy_database() {
     await knex_db.destroy()
     db_destroyed = true
   }

@@ -58,7 +58,7 @@ function while_monitoring(element) {
       if (!Array.isArray(events)) events = [events]
 
       const events_heard = []
-      const listener = e => {
+      function listener(e) {
         if (!events_heard.includes(e.type))
           events_heard.push(e.type)
       }
@@ -106,7 +106,7 @@ function while_monitoring(element) {
       if (!Array.isArray(events)) events = [events]
 
       const events_heard = []
-      const listener = e => {events_heard.push(e.type)}
+      function listener(e) {events_heard.push(e.type)}
       events.forEach(e => {element.addEventListener(e, listener)})
 
       const upon = (cause=()=>{}, timeout_ms=default_wait) => {

@@ -41,7 +41,7 @@ function form_builder(schema,
   const form = form_builder.document.createElement('form')
   form_attributes.forEach((attr, attr_value) => form.setAttribute(attr, attr_value))
 
-  const createAppendElement = function (parent, tag) {
+  function createAppendElement(parent, tag) {
     /*
     Creates a new element of type tag.
     Appends new element to parent.

@@ -29,7 +29,7 @@ describe('add_method', function() {
   it('sets a method', function() {
     const name = 'fun_method'
     const val = 'sets a method'
-    const method = function() {this.val = val}
+    function method() {this.val = val}
     add_method(name, test_obj, method)
 
     expect(test_obj.prototype[name]).to.equal(method)
@@ -41,7 +41,7 @@ describe('add_method', function() {
   it('is not enumerable', function() {
     const name = 'fun_method'
     const val = 'sets a method'
-    const method = function() {this.val = val}
+    function method() {this.val = val}
     add_method(name, test_obj, method)
 
     const instance = new test_obj()
