@@ -46,5 +46,6 @@ module.exports = {
         "strict": ["error", "global"],
         "eol-last": ["error", "always"],
         "prefer-destructuring": ["error"],
+        "no-trailing-spaces": ["error"],
     },
 }
