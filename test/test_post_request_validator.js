@@ -1,5 +1,4 @@
-/*eslint-disable no-unused-vars, no-console */
-/*global __dirname, describe, context, it, before, beforeEach, after, afterEach */
+/*global __dirname, describe, it, before, beforeEach */
 
 const post_request_validator = require('../post_request_validator.js')
 
@@ -23,13 +22,8 @@ const sinon = require('sinon')
 
 require('./unhandled.js')
 
-const schema_dir = path.join(__dirname, 'form_schemas')
-const schema_path = path.join(schema_dir, 'form_test_schema.js')
-const schema = require(schema_path)
 
-
-
-let req_validated
+let req_validated = undefined
 beforeEach(() => {req_validated = undefined})
 async function load_request_handler(schemas) {
   const app = express()
@@ -40,16 +34,14 @@ async function load_request_handler(schemas) {
     throw combineErrors([new Error('Problem creating app'), err])
   }
 
-  app.use(function(req, res) {
+  app.use((req, res) => {
     req_validated = req
-    res.status(200)
-    res.send('validation success')
+    res.status(200).send('validation success')
   })
 
-  app.use(function(err, req, res, next) {
+  app.use((err, req, res, next) => { //eslint-disable-line no-unused-vars
     // render the error page
-    res.status(err.status || 500)
-    res.send('error')
+    res.status(err.status || 500).send('error')
   })
 
   return supertest(app)
@@ -57,6 +49,12 @@ async function load_request_handler(schemas) {
 
 
 describe('validate schema', function() {
+  it('can accept a file path', function() {
+    const file_path = resolve_path('good_schema.js')
+
+    return post_request_validator(file_path)
+  })
+
   describe('throw error when', function() {
     it('schema is not an Object', function() {
       const schema = []
@@ -133,11 +131,11 @@ describe('validate schema', function() {
           form: [
             {
               name: 'same_name', // same name
-              validate: function(a) {},
+              validate: function(a) {}, //eslint-disable-line no-unused-vars
             },
             {
               name: 'same_name', // same name
-              validate: function(a) {},
+              validate: function(a) {}, //eslint-disable-line no-unused-vars
             },
           ],
         }
@@ -195,7 +193,7 @@ describe('validate schema', function() {
             form: [
               {
                 name: 'name',
-                validate: function(a) {},
+                validate: function(a) {}, //eslint-disable-line no-unused-vars
               },
             ],
           }
@@ -255,7 +253,7 @@ describe('validate schema', function() {
     // cache makes the second two run faster than the first
     ['file', 'File', 'FILE'].forEach(file_case => {
       it(file_case, async function() {
-        const validate_spy = sinon.spy(file => {})
+        const validate_spy = sinon.spy(file => {}) //eslint-disable-line no-unused-vars
         const schema = {
           form: [
             {
@@ -391,27 +389,27 @@ describe('catch validation errors', function() {
       const schemas = {
         sync_no_error: [{
           name: 'input',
-          validate: value => {},
+          validate: value => {}, //eslint-disable-line no-unused-vars
         }],
         sync_error: [{
           name: 'input',
-          validate: value => {throw new Error(error_msg)},
+          validate: value => {throw new Error(error_msg)}, //eslint-disable-line no-unused-vars
         }],
         sync_change_val: [{
           name: 'input',
-          validate: value => change_val,
+          validate: value => change_val, //eslint-disable-line no-unused-vars
         }],
         async_no_error: [{
           name: 'input',
-          validate: value => Promise.resolve(),
+          validate: value => Promise.resolve(), //eslint-disable-line no-unused-vars
         }],
         async_error: [{
           name: 'input',
-          validate: value => Promise.reject(new Error(error_msg)),
+          validate: value => Promise.reject(new Error(error_msg)), //eslint-disable-line no-unused-vars
         }],
         async_change_val: [{
           name: 'input',
-          validate: value => Promise.resolve(change_val),
+          validate: value => Promise.resolve(change_val), //eslint-disable-line no-unused-vars
         }],
       }
 
@@ -491,7 +489,7 @@ describe('catch validation errors', function() {
         mimetype: 'text/plain',
       }
 
-      const validate_spy = sinon.spy(file => {})
+      const validate_spy = sinon.spy(file => {}) //eslint-disable-line no-unused-vars
 
       const schemas = {
         file_req: [
@@ -522,7 +520,7 @@ describe('catch validation errors', function() {
           {
             name: 'file_in',
             attr: {type: 'file'},
-            validate: file => {throw new Error(error_text)},
+            validate: file => {throw new Error(error_text)}, //eslint-disable-line no-unused-vars
           },
         ],
       }
@@ -540,9 +538,9 @@ describe('catch validation errors', function() {
     })
 
     it('multiple file fields', async function() {
-      const spy_valid = sinon.spy(file => {})
+      const spy_valid = sinon.spy(file => {}) //eslint-disable-line no-unused-vars
       const error_text = 'bad validation',
-            spy_invalid = sinon.spy(file => {throw new Error(error_text)})
+            spy_invalid = sinon.spy(file => {throw new Error(error_text)}) //eslint-disable-line no-unused-vars
 
       const schemas = {
         form_hi: [
@@ -579,7 +577,7 @@ describe('catch validation errors', function() {
     })
 
     it('multiple files with the same fieldname', async function() {
-      const validate_spy = sinon.spy(file => {})
+      const validate_spy = sinon.spy(file => {}) //eslint-disable-line no-unused-vars
       const schemas = {
         file_req: [
           {

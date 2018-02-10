@@ -1,5 +1,3 @@
-/*eslint-disable no-unused-vars, no-console */
-
 /*
   file validoator will be passed a File object or a multer file information object.
 */
@@ -10,39 +8,13 @@ const express = require('express')
 const _ = require('lodash')
 const multer = require('multer')
 
-
 const load_schema = require('./load_schema.js')
 
 /*
-  schema
+  schemas
     - string to schema file
     - schema object
 */
-
-
-const base_item = Joi.object()
-  .keys({name: Joi.string().required()})
-  .unknown(true)
-
-const form_skip = base_item.keys({form_skip: Joi.required().valid(true)})
-
-const form_item = base_item
-  .when(form_skip, {
-    then: form_skip.keys({validate: Joi.forbidden()}),
-  })
-  .try(base_item.keys({
-    validate: Joi.alternatives(
-      Joi.object({isJoi: Joi.required().valid(true)}).unknown(true),
-      Joi.func().arity(1)
-    ).required(),
-    attr: Joi.object({type: Joi.string().lowercase()}),
-  }))
-
-const schema_validator = Joi.object().pattern(/.*/,
-  Joi.array().items(form_item).unique('name')
-)
-
-
 async function post_request_validator(schemas) {
   schemas = await load_schema(schemas)
   schemas = await schema_validator.validate(schemas)
@@ -55,9 +27,6 @@ async function post_request_validator(schemas) {
               .filter(({form_skip}) => form_skip === undefined ||
                                        form_skip === false),
             schema_obj = _.keyBy(schema_arr, 'name')
-
-      // post handler
-      const form_input_names = _.map(schema_arr, 'name')
 
       function validator_wrapper({name, validate}) {
         if (validate.isJoi) {
@@ -113,7 +82,7 @@ async function post_request_validator(schemas) {
 
         multer({storage: multer.memoryStorage()}).fields(
           expected_file_keys.map(name => ({name}))
-        ), // parse multipart/form-data into the body
+        ),
 
         (req, res, next) => {
           /* correct body fields/keys */
@@ -182,5 +151,30 @@ async function post_request_validator(schemas) {
 
   return router
 }
+
+
+// joi validators for schemas input
+const base_item = Joi.object()
+  .keys({name: Joi.string().required()})
+  .unknown(true)
+
+const form_skip = base_item.keys({form_skip: Joi.required().valid(true)})
+
+const form_item = base_item
+  .when(form_skip, {
+    then: form_skip.keys({validate: Joi.forbidden()}),
+  })
+  .try(base_item.keys({
+    validate: Joi.alternatives(
+      Joi.object({isJoi: Joi.required().valid(true)}).unknown(true),
+      Joi.func().arity(1)
+    ).required(),
+    attr: Joi.object({type: Joi.string().lowercase()}),
+  }))
+
+const schema_validator = Joi.object().pattern(/.*/,
+  Joi.array().items(form_item).unique('name')
+)
+
 
 module.exports = post_request_validator
