@@ -33,7 +33,7 @@ const path = require('path')
 const mime = require('mime-types')
 
 const { JSDOM } = require('jsdom')
-const {File, FileList } = (new JSDOM()).window
+const { File, FileList } = (new JSDOM()).window
 
 
 function addFileList(input, file_paths) {
