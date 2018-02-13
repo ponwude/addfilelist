@@ -20,7 +20,7 @@ addFileList(input, [
 
 ## Install and Require
 ```sh
-npm install https://github.com/BebeSparkelSparkel/dependency_tree.git
+npm install https://github.com/BebeSparkelSparkel/addFileList.git
 ```
 ```javascript
 const { addFileList } = require('addFileList')
