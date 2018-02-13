@@ -1,6 +1,6 @@
 # addFileList
 Put files into jsdom file inputs.
-
+Solves unresolved jsdom issue https://github.com/jsdom/jsdom/issues/1272
 
 ## Intended Use
 Add one file:
