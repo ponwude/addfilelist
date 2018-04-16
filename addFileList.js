@@ -48,7 +48,7 @@ function addFileList(input, file_paths) {
 
   Object.defineProperty(input, 'files', {
     value: file_list,
-    writeable: false,
+    writable: false,
   })
 
   return input
