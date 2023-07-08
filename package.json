@@ -17,7 +17,7 @@
   },
   "homepage": "https://github.com/BebeSparkelSparkel/addFileList#readme",
   "dependencies": {
-    "jsdom": "^11.5.1"
+    "jsdom": "^22.1.0"
   },
   "devDependencies": {
     "mime-types": "^2.1.17"
